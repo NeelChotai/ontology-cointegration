@@ -74,8 +74,6 @@
 
 \RequirePackage[style=ieee,backend=biber]{biblatex}
 
-
-
 %\typearea[current]{calc} % force page layout recalculation after
                          % changing all the fonts
 
@@ -115,7 +113,7 @@
 
 \titlehead{ \hfill Department of Computer Science\\\vspace{32pt}
 \begin{center}
-\includegraphics[height = 1in]{"./UOY-Logo-Stacked-shield-Black"}\\
+\includegraphics[height = 1in]{"./UoY"}\\
 \vspace{32pt}
   \ifx\UoYCSP@degree\undefined%
     \ClassError{UoYCSproject}%
