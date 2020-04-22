@@ -1,14 +1,34 @@
 from pandas import read_csv
+import rdflib
+import os
 
-def main():
-    # after reading in ontology data, create a sorted list descending by highest cointegration factor
-    # performance can be returned individually if user requests or generate graphs
-    print("Hello world.")
+def preprocess(graph):
+    #remove entries for which we don't have ticker data
+    tickers = []
+
+    for filename in os.listdir("data/tickers/"):
+        ticker = filename.split(".")
+        tickers.append(ticker[0])
+
+    # scan through ontology, check if each ticker value exists in data
+    # if not, remove entry
+    # return transformed graph
+
+    return graph
+
+def populate():
+    graph = rdflib.Graph()
+
+    for x in range(0, 29):
+        temp_graph = rdflib.Graph().parse("data/directorship/ownership-" + str(x) + ".nt", format="nt")
+        graph += temp_graph
+
+    return preprocess(graph)
 
 def generate():
     # generate and sort SPARQL queries here
     # return as CSV?
-    # return format: dictionary where key = ticker pair and cointegration score
+    # return format: dictionary where key = ticker pair and number of shared attributes
     print("todo")
 
 def evaluate(ticker):
@@ -21,6 +41,5 @@ def evaluate(ticker):
     timeline = ((close_price.loc[len(data) - 1] - close_price.loc[0])/close_price.loc[0]) * 100
 
     return float(one_month), float(six_months), float(timeline)
-    
 
-print(evaluate("INTC"))
+graph = populate()
