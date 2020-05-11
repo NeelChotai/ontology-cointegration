@@ -1,13 +1,21 @@
+import os
+import sys
+from datetime import datetime
+import random
 import pandas as pd
 import numpy as np
-import rdflib
-import os
 import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import coint
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
-import random
+import rdflib
 import pickle
 import yfinance as yf
+from enum import Enum
+
+class coint_return(Enum):
+    RELATIONSHIP = 0
+    NO_RELATIONSHIP = 1
+    INVALID = 2
 
 cache_file = "/tmp/graph.cache"
 
@@ -34,21 +42,7 @@ def initial_run(cache_file):
         pickle.dump(graph, outfile)
         outfile.close()
 
-def random_companies(sample_size):
-    random_out = []
-
-    with open("stocks.txt") as stocks:
-        tickers = stocks.read().split(",")
-    
-    for x in range(sample_size):
-        pair = (random.choice(tickers), random.choice(tickers))
-        
-        if pair[0] == pair[1] or pair in random_out or reversed(pair) in random_out:
-            sample_size += 1
-        else:
-            random_out.append(pair)
-
-    return random_out
+    return graph
 
 def generate(graph):
     # SPARQL queries here
@@ -63,27 +57,76 @@ def generate(graph):
 
 def cointegrate(ticker1, ticker2):
     # cointegrates two time series given by tickers
-    # returns True if time series are cointegrated
 
-    series1 = yf.download(ticker1, "2015-01-01", "2020-01-01").filter(["Date", "Close"])
-    series2 = yf.download(ticker2, "2015-01-01", "2020-01-01").filter(["Date", "Close"])
+    start_date = datetime(2015, 1, 1)
+    end_date = datetime(2020, 1, 1)
+
+    try: # handle ticker not found errors
+        series1 = yf.download(ticker1, period="10y").filter(["Date", "Open"])
+        series2 = yf.download(ticker2, period="10y").filter(["Date", "Open"])
+    except:
+        return coint_return.INVALID
     
     merged = pd.merge(series1, series2, how="outer", on=["Date"])
     merged.dropna(inplace=True)
-    print(merged)
-    johansen_frame = pd.DataFrame({"x":merged["Close_x"], "y":merged["Close_y"]})
+    merged.reset_index(inplace=True, drop=False)
+    mask = (merged["Date"] >= start_date) & (merged["Date"] < end_date)
+    merged = merged.loc[mask]
 
-    score, p_value, _ = coint(merged["Close_x"], merged["Close_y"])
+    if len(merged) <= 365:
+        return coint_return.INVALID
+
+    johansen_frame = pd.DataFrame({"x":merged["Open_x"], "y":merged["Open_y"]})
+    score, p_value, _ = coint(merged["Open_x"], merged["Open_y"])
     johansen = coint_johansen(johansen_frame, 0, 1)
 
-    if p_value < 0.05 or johansen.cvt[1][0] < johansen.lr1[1]: # calculates cointegration using p-value and trace statistic (90% confidence)
-        return True
-    return False
+    if p_value < 0.05 and johansen.cvt[0][0] < johansen.lr1[0]: # calculates cointegration using p-value and trace statistic (90% confidence)
+        print(ticker1, ticker2) # debug
+        return coint_return.RELATIONSHIP
+    return coint_return.NO_RELATIONSHIP
 
-#test = random_companies(100)
+def random_companies(sample_size):
+    count = 0
+    random_set = []
 
-#import sys
-#for pair in test:
-#    sys.stdout.write("{}/{}, ".format(pair[0], pair[1]))
+    with open("stocks.txt") as stocks:
+        tickers = stocks.read().split(",")
+    
+    for x in range(sample_size):
+        pair = (random.choice(tickers), random.choice(tickers))
+        
+        if pair[0] == pair[1] or pair in random_set:
+            sample_size += 1
+        elif reversed(pair) in random_set:
+            result = cointegrate(pair[0], pair[1])
+            result_reversed = cointegrate(pair[1], pair[0])
+        else:
+            result = cointegrate(pair[0], pair[1])
+            if result == coint_return.INVALID:
+                sample_size += 1
+            else:
+                if result == coint_return.RELATIONSHIP:
+                    count += 1
+                random_set.append(pair)
+                #sys.stdout.write("{}/{}, ".format(pair[0], pair[1]))
 
-p = cointegrate("GOOG", "GOOGL")
+    return count
+
+def preprocess(stocks):
+    # remove reflexive pairs
+    # remove reversed pairs after testing
+    # remove pairs with less than one year of history
+    
+    return stocks
+
+def cointegration_count(stocks): # this will probably just be appended to the end
+    for pair in stocks:
+        if cointegrate(pair[0], pair[1]) == coint_return.RELATIONSHIP:
+            count += 1
+            #sys.stdout.write("{}/{}, ".format(pair[0], pair[1]))
+
+    return count
+
+#graph = initial_run(cache_file)
+
+print(random_companies(100))
