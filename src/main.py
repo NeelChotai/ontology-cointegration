@@ -19,16 +19,7 @@ class coint_return(Enum):
 
 cache_file = "/tmp/graph.cache"
 
-def populate():
-    graph = rdflib.Graph()
-
-    for x in range(0, 29):
-        temp_graph = rdflib.Graph().parse("data/directorship/ownership-{}.nt".format(str(x)), format="nt")
-        graph += temp_graph
-
-    return graph
-
-def initial_run(cache_file):
+def populate(cache_file):
     # for ease of programming
     # the graph data structure is enormous, pickling prevents regenerating the same structure every run
 
@@ -37,20 +28,30 @@ def initial_run(cache_file):
         graph = pickle.load(infile)
         infile.close()
     else:
-        graph = populate()
+        graph = rdflib.Graph()
+        
+        for x in range(0, 29):
+            graph.parse("data/ownership-{}.nt".format(str(x)), format="nt")
+        
         outfile = open(cache_file, "wb")
         pickle.dump(graph, outfile)
         outfile.close()
 
     return graph
 
-def generate(graph):
+def query(graph):
     # SPARQL queries here
     # return format: dictionary where key = ticker pair and number of shared attributes
     # if sample size given, return subdict descending
 
     shared_attributes = graph.query(
-        ''' some query
+        '''
+        PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+        SELECT *
+        WHERE {
+            ?report foaf:name ?type .
+        }
         ''')
     
     return shared_attributes
@@ -92,23 +93,32 @@ def random_companies(sample_size):
     with open("stocks.txt") as stocks:
         tickers = stocks.read().split(",")
     
-    for x in range(sample_size):
+    for x in range(sample_size): # preprocessing of control set
         pair = (random.choice(tickers), random.choice(tickers))
-        
-        if pair[0] == pair[1] or pair in random_set:
+        reversed_pair = reversed(pair)
+        result_random = cointegrate(pair[0], pair[1])
+
+        if pair[0] == pair[1] or pair in random_set or result_random == coint_return.INVALID:
             sample_size += 1
-        elif reversed(pair) in random_set:
-            result = cointegrate(pair[0], pair[1])
-            result_reversed = cointegrate(pair[1], pair[0])
-        else:
-            result = cointegrate(pair[0], pair[1])
-            if result == coint_return.INVALID:
-                sample_size += 1
-            else:
-                if result == coint_return.RELATIONSHIP:
-                    count += 1
+        elif reversed_pair in random_set:
+            result_existing = cointegrate(pair[1], pair[0]) # since this pair is in the set, coint_return will never be invalid
+            
+            if result_existing == coint_return.RELATIONSHIP:
+                pass # if the existing entry has a cointegrating relationship, do nothing
+            elif result_random == coint_return.RELATIONSHIP:
+                random_set.remove(reversed_pair)
                 random_set.append(pair)
-                #sys.stdout.write("{}/{}, ".format(pair[0], pair[1]))
+
+            # only remaining possibility is neither pair has a cointegrating relationship
+        else:
+            random_set.append(pair)
+            
+    for pair in random_set: # testing cointegration of control set
+        result = cointegrate(pair[0], pair[1])
+        if result == coint_return.RELATIONSHIP:
+            count += 1
+
+        #sys.stdout.write("{}/{}, ".format(pair[0], pair[1])) # to get results
 
     return count
 
@@ -127,6 +137,11 @@ def cointegration_count(stocks): # this will probably just be appended to the en
 
     return count
 
-#graph = initial_run(cache_file)
+#graph = populate(cache_file)
+
+#test = query(graph)
+#for row in test:
+#    print(row)
+#    print("\n")
 
 print(random_companies(100))

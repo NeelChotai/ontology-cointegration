@@ -2,7 +2,7 @@
 \addbibresource{bibliography.bib}
 \author{Neel Chotai}
 \title{Evaluating trade viability through semantic web ontologies}
-\date{Version 1.0}
+\date{Today}
 \supervisor{Dimitar Kazakov}
 \BEng
 
@@ -25,7 +25,7 @@ This report marries together the fields of computer science and economics by see
 
 Pairs trading is a form of statistical arbitrage where the trader takes out both a short and long position simultaneously. Highly correlated stocks which cointegrate are the best candidates for pairs trading as the price tends to move together over time. Murray describes cointegration humourously using the example of a drunk and her dog \parencite{drunkdog}. Observing the pattern of a drunk after a night of drinking would look completely random, much like the path of a wandering dog - the dog will meander to wherever its nose takes it. If, however, the dog belongs to the drunk and the drunk calls for the dog, the dog will remain close to the drunk - hence the two wander aimlessly, together. This is exactly the concept of cointegration and what we hope to capitalise on.
 
-Information from SEC reports stored in web ontologies, such as directorship, percentage ownership and company affiliation, may be key to finding highly cointegrated pairs. For example, the case may be that two companies which share directors, officers and parent company have a high degree of correlation, cointegrate well and thus are ideal candidates for pairs trading. Using this information and historical stock data, we can test our hypothesis.
+Information from SEC reports stored in web ontologies, such as directorship, percentage ownership and company affiliation, may be key to finding highly cointegrated pairs. For example, the case may be that two companies which share directors, officers and investors have a high degree of correlation, cointegrate well and thus are ideal candidates for pairs trading. Using this information and historical stock data, we can test our hypothesis.
 
 Our hypothesis is that companies with a greater number of relationships within our web ontology, populated with information from SEC reports, will make superior candidates for pairs trading. Our methodology will test to see if companies with a large amount of shared attributes cointegrate well, visually display their relationship and compare how well a trading strategy with this information compares to an index fund.
 
@@ -36,13 +36,11 @@ This chapter will assess the viability of this project by focusing on three main
 
 \section{Ontologies}
 
-Ontologies are a representation of concepts within a domain, the concepts being categories, properties and relationships between data and entities. Simply put, an ontology shows us characteristics of a subject and how these are related to other characteristics and subjects. In our case, the subjects will be people and companies and characteristics will be things like job title, directorship status, and stock ticker. Ontologies have multiple benefits, as have been noted by Uschold and Gruniger \parencite{ontdef}, such as ease of programming implementation, informative visualisation but the principal among them being that ontologies remove the barrier caused by disparate backgrounds, languages, tools and techniques by providing a single unified interface to a dataset. Ontologies also provide more knowledge about the domain of the data, allowing us to more accurately and easily model relationships.
+Ontologies are a representation of concepts within a domain, the concepts being categories, properties and relationships between data and entities. Simply put, an ontology shows us characteristics of a subject and how these are related to other characteristics and subjects. In our case, the subjects will be people and companies; characteristics will be things like job title, directorship status, and stock ticker. Ontologies have multiple benefits, as have been noted by Uschold and Gruniger \parencite{ontdef}, such as ease of programming implementation, informative visualisation but the principal among them being that ontologies remove the barrier caused by disparate backgrounds, languages, tools and techniques by providing a single unified interface to a dataset. Ontologies also provide more knowledge about the domain of the data, allowing us to more accurately and easily model relationships.
 
 Ontologies have been used in other fields for much the same reason we believe they will be a better source of information than a simple database. Frank examines how ontologies can be used to improve consistency of data coming from many different sources \parencite{ontgeog}. Instead of consistency constraints and database schemas, ontologies easily integrate data from different sources in to a single system, eliminating erroneous data and allowing our dataset to become more extensible lending us an easy way to new data in the future. Smith et al. have described the use of ontologies in the biomedical field for the purpose of disambiguation \parencite{ontbio}. Smith et al. found that ontologies are more consistent and unambiguous compared to a traditional database in the case of medical vocabulary where two completely unrelated procedures or medicines may share the same name or abbreviation. This is particularly useful for us, for example, if multiple people have the same name; ontologies provide a better way to link together information and an easy interface to visualise these relationships.
 
-Research in to using ontologies in finance is limited, proprietary trading methods lead to little public information being available. However, there have been studies in to representing time-series data in ontologies. 
-
-Knowledge graphs? ...
+Research in to integrating time series data in ontologies is limited, however Qu et al. have utilised this approach by representing tweets and stock information in an ontology \parencite{onttime}. < not really applicable? we're not using time series data in an ontology>
 
 \section{Pairs trading}
 
@@ -50,7 +48,7 @@ Pairs trading is a market neutral trading strategy that allows traders to profit
 
 Pairs trades have shown to be profitable by simply choosing two stocks which have moved together in the past \parencite{pairshistory}. The logic behind this strategy is straightforward: if a pair of stocks has historically moved together and one has diverged, we can short the underperforming stock and long the outperforming stock. Assuming that history repeats itself and the stocks converge, the trader can make profit from a relatively low-risk trade.
 
-In a study by Huck and Afawubo \parencite{cointsupport} comparing multiple ways to select pairs, cointegration was found to be a the superior method exhibiting high and robust positive alpha. Further research by Do et al. goes further compares Engle and Granger’s 2-step approach with Johansen’s, finding the former to be influenced by the ordering of the variables and, on occasion, returning spurious estimators \parencite{cointcompared}. Further investigation on this will be undertaken in the design section where we compare the two methodologies.
+In a study by Huck and Afawubo \parencite{cointsupport} comparing multiple ways to select pairs, cointegration was found to be a the superior method exhibiting high and robust positive alpha.
 
 \section{Cointegeration}
 
@@ -59,82 +57,207 @@ Take two series, $x_{t}$ and $y_{t}$, each of which is integrated of order 1 (\e
 
 \[z_t = x_t - Ay_t\]
 
-is \emph{I}(0), $x_t$ and $y_t$ are said to be cointegrated with A being the cointegrating parameter. To test for cointegration, there are a few methodologies. The ones we will be focusing on and deciding between are the Johansen test \parencite{johansen} and the augmented Engle-Granger two-step cointegration test (which utilises the augmented Dickey-Fuller test) \parencite{adf}. Both tests return the hedge ratio and p-values, allowing us to reject the null hypothesis of unit root or no cointegration.
+is \emph{I}(0), $x_t$ and $y_t$ are said to be cointegrated with A being the cointegrating parameter. Several testing methodologies are available to find out if two time series are cointegrated, the most popular being the Engle-Granger and Johansen tests.
 
-I've chosen to use cointegration to select pairs as opposed to correlation is uncertainty. Correlation indicates that two securities are linked but says nothing about their magnitudes. For example, two stocks may climb together but at vastly different rates. Cointegration removes this uncertainty by identifying pairs that do not drift too far away from each other over the long term. <THIS IS MORE SUITABLE IN METHOD/PROBLEM ANALYSIS>
+The Engle-Granger methodology is in two steps. The first step is to create residuals based on the static regression of two time series and the second step is to test these residuals for the presence of unit roots, typically done using the augmented Dickey-Fuller test \parencite{englegranger} \parencite{adf}. If the p-value returned by this test is sufficiently low, we can reject the null hypothesis of no cointegration.
+
+The Johansen test can test for cointegrating relationships between more than two time series (eliminating the issue of choosing a dependent variable) and allows for more than one cointegrating relationship, unlike Engle-Granger \parencite{johansen}. This methodology is subject to asymptotic properties and requires a large sample size or unreiable results are produced. Two results are are returned by the Johansen test: the trace statistic and the maximum eigenvalue statistic. The null hypothesis for both tests is that the number of cointegrating relationships (given by linear combinations) is at least one. For the trace test, the null hypothesis is given by $H_0: K > K_0$ as opposed to the alternate hypothesis $H_a: K = K_0$. $K_0$ is set to zero to test if the null hypothesis can be rejected and, if it is, we deduce there is a cointegrating relationship in the sample. For the maximum eigenvalue test, the alternate hypothesis is given by $H_a: K_0 + 1$. The difference between the two methods is that the maximum eigenvalues test gives an estimator of the number of linear combinations: if $K = K_0$ and the null hypothesis is rejected, we can deduce there is one possible outcome that produces a stationary process. However, if $K_0 = N - 1$ and the null hypothesis is rejected, there are N possible linear combinations.
+
+Both methods are far from perfect, for example: research by Do et al. compares Engle and Granger’s 2-step approach with Johansen’s, finding the former to be influenced by the ordering of the variables and, on occasion, returning spurious estimators \parencite{cointcompared}. However, research carried out by Gonzalo and Lee show that, for most situations, Engle-Granger is more robust than Johansen's likelihood ratio test \parencite{englegrangerjohansen}. Gonzalo and Lee recommend using both Engle-Granger and Johansen tests in order to detect the possibility of a pitfall and subsequently increasing the chance of avoiding it.
+
+Cointegration is a commonly used measure to show a statistically significant connection between two time series. We will be focusing on individual securities as time-series but research from Khan has shown cointegration can be used on a wider scale by examining the convergence of global markets \parencite{khancointegration}. This paper displays the interconnectedness of global stock markets, a phenomenon that has been consistently observed \parencite{interconnectedness} \parencite{topical} \parencite{global}, lending credence to the idea that cointegration is a good measure of connection.
+
+The reason cointegration is preferable for pair selection instead of correlation is uncertainty. Correlation indicates that two securities are linked but says nothing about their magnitudes. For example, two stocks may climb together but at vastly different rates. Cointegration removes this uncertainty by identifying pairs that do not drift too far away from each other over the long term.
 
 \chapter{Problem Analysis}
 \label{cha:Problem Analysis}
 
-<Huck and Afawubo's research applies here in motivation - methods are mostly proprietary>
-
 \section{Objectives}
 
-<state what we wish to achieve>
+Our main intention is to elucidate whether these links between companies have any effect on their market price. This information is not just valuable for pairs trading: cointegrated pairs could be used, for example, to diversify investment in a sector. If an investor felt bullish on semiconductors, they may want to take out multiple positions in cointegrated companies as opposed to a single position in one.
+
+An ancillary objective is to call attention to the fact that companies are made of up of people. Should we find statistically significant evidence that two companies linked by one or a number of people are cointegerated and typically move together, this has interesting consequences on future investments and may shift over the perspective of looking at a company to looking at pioneering individuals. 
 
 \section{Motivation}
 
-<state why we're investigating this area>
+Huck and Afawubo remark that strategies implemented are proprietary in nature \parencite{cointsupport}, which is one of the main reasons this project exists. The process of deriving potentially relevant financial information from a web ontology lends itself to many fields and the information ascertained would not need to exclusively pertain to finance.
 
-\section{Requirements}
+Another reason is to provide some additional information to the efficient market hypothesis \parencite{efficientmarket}, a theory that has led to much discussion and dispute. The information garnered from web ontologies may provide credence to classifying our market as semi-strong-form.
 
+Understanding market trends is useful for more that simply turning a profit. Market analysis can aid us in extrapolating information about sector saturation, the emergence of new products and technologies, and understanding the needs of people through demand.
 
+\subsection{Alphabet}
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[trim=0 0 0 15, clip, width=\linewidth]{"./images/GOOGGOOGL"}
+\end{center}
+\caption{Stock price of GOOG (Alphabet Inc - Class C) and GOOGL (Alphabet Inc - Class A) from 2019/11/1 to 2020/1/31.}
+\end{figure}
+
+Alphabet is traded as both GOOG (class C) and GOOGL (class A). Running the Engle-Granger cointegration test gives a p-value of 0.0022 indicating that the two pairs are cointegrated with 99\% confidence. The most likely explanation to this relationship is that the two stocks belong to the same company. 
+
+\subsection{Visa and Mastercard}
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[trim=0 0 0 15, clip, width=\linewidth]{"./images/VMA"}
+\end{center}
+\caption{Stock price of V (Visa Inc - Class A) and MA (Mastercard Inc - Class A) from 2019/11/1 to 2020/1/31.}
+\end{figure}
+
+The stock prices of Visa and Mastercard tend to move together based on historical information. The Engle-Granger cointegration test returns a p-value of 0.0008, indicating that the pairs are significantly cointegrated. Knowing about this relationship gives a little more information about the companies through purely quantitative analysis, we're able to infer that the companies may be in the same sector, may be competitors or may share significant people.
 
 \section{Problems}
 
-\section{Evaluation criteria}
+The automatic identification of cointegrated companies based on attributes is not without fault. Our approach of using SEC reports may lead to operating on outdated information; publicly traded companies are only required to submit reports, at minimum, quarterly. Given that we intend to model long-term relationships, this becomes less of a concern but this risk must nonetheless be kept in mind.
 
-\begin{figure}[htb]
-\begin{center}
-\includegraphics[height=3cm]{"./UoY"}
-\end{center}
-\caption{A figure containing UoY logo and its caption.}
+While pairs trading is only being used as a comparison point for performance in this study, the strategy is not without risk. When two securities begin to drift apart (i.e. do not revert to the mean), strict risk management rules or manual intervention may be required to mitigate losses.
+
+\section{Hypothesis}
+
+Our hypothesis is based on the fact that that cointegration is a measure of some statistically significant connection between two securities. We posit that this connection can be explained by real-world link between the companies, be it sector, shareholders or some other attribute. We hypothesise companies that share a large amount of attributes are more likely to be cointegrated, and there is a quantifiable difference between companies that are cointegrated and companies that aren't, which can be explained using web ontologies.
+
+\chapter{Design and Implementation}
+\label{cha:Design and Implementation}
+
+\section{Methodology overview}
+
+The method to test this hypothesis is split in to three parts: selecting pairs, testing cointegration and backtesting pairs. 
+
+In order to select pairs we will be utilising information garnered from SEC reports, in the form of a web ontology, to compile two lists of companies. One set of pairs selected at random and one set of pairs with a large number of shared attributes. Our primary belief being that this set has a higher likelihood of being cointegrated with the secondary belief that this set will produce a better return on a pairs trade when compared to companies that share fewer attributes.
+
+To test for cointegration, we will be using historical stock data for the companies from the Nasdaq stock exchange. Each pair in both sets will be tested to see how well they cointegrate and the total number of cointegrated pairs will be compared across sets.
+
+As an additional test, we will use the same historical stock data to backtest a trading strategy using both securities. Both randomly selected and high attribute pairs will be benchmarked against each other and a relevant index fund (e.g. a market or industry benchmark) will be used as an additional point of comparison.
+
+\section{Data}
+
+The data from the web ontology is stored in N-Triples format and gives different information depending on the entity. N-Triples is a subset of Turtle and Notation 3; the ontology file consists exclusively of lines containing either statements or comments. Statements have four parts: the subject, predicate, object and a full stop which marks the end of the statement.
+
+The subject takes the form of a URI (or blank node) and in this dataset is given by an SEC URL (doesn't exist bruh). The predicate must be a URI
+
+\begin{figure}[p]
+\begin{lstlisting}[breaklines, basicstyle=\scriptsize, columns=fullflexible]
+<http://sec.com/0001494619> <http://xmlns.com/foaf/0.1/name> "Boardman Robert J."^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://sec.com/0001494619> <http://schema.org/jobTitle> "Man. Director, CEO of Europe"^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://sec.com/0001494619> <http://york.ac.uk/cik> "0001494619"^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://sec.com/0001494619> <http://york.ac.uk/isdirector> "false"^^<http://www.w3.org/2001/XMLSchema#boolean> .
+<http://sec.com/0001494619> <http://york.ac.uk/isofficer> "true"^^<http://www.w3.org/2001/XMLSchema#boolean> .
+<http://sec.com/0001494619> <http://york.ac.uk/is10percentowner> "false"^^<http://www.w3.org/2001/XMLSchema#boolean> .
+<http://sec.com/0001494619> <http://york.ac.uk/isother> "false"^^<http://www.w3.org/2001/XMLSchema#boolean> .
+\end{lstlisting}
+\caption{Example of information stored for an entity of type Person.}
 \end{figure}
 
-Donec felis odio, ultricies maximus sem at, fringilla mollis ipsum. Etiam finibus diam vehicula, egestas ante sed, tincidunt neque. Maecenas porttitor euismod ultrices. Duis imperdiet dictum viverra. Donec in ligula quis enim hendrerit euismod. Aliquam vitae lectus massa. Proin id condimentum leo. Cras mollis, diam at faucibus interdum, dui nulla suscipit metus, nec suscipit leo nisl vel nisl. Ut dapibus dignissim iaculis. Etiam et ante sit amet lectus ultrices lobortis a nec turpis.
+\begin{figure}[p]
+\begin{lstlisting}[breaklines, basicstyle=\scriptsize, columns=fullflexible]
+<http://sec.com/0000320193> <http://york.ac.uk/cik> "0000320193"^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://sec.com/0000320193> <http://xmlns.com/foaf/0.1/name> "APPLE INC"^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://sec.com/0000320193> <http://york.ac.uk/tradingsymbol> "AAPL"^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://sec.com/2017/QTR1/1258883/4/0001628280-17-001483.txt> <http://york.ac.uk/periodreport> "2017-02-16"^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://sec.com/2017/QTR1/1258883/4/0001628280-17-001483.txt> <http://york.ac.uk/reporttype> "4"^^<http://www.w3.org/2001/XMLSchema#string> .
+\end{lstlisting}
+\caption{Example of information stored for an entity of type Company.}
+\end{figure}
+\clearpage
 
-\begin{table}[htb]
-\caption{ A table with its caption.}
+The historical stock data is provided by the yfinance Python module (through Yahoo Finance) \parencite{yfinance} and comprises of information for the stock using the date as an index. For example, a query on NVDA provides the following information:
+
+\begin{figure}[h]
+\begin{lstlisting}[basicstyle=\scriptsize, columns=fullflexible]
+                  Open        High         Low       Close   Adj Close      Volume
+Date                                                                              
+1999-01-22    1.750000    1.953125    1.552083    1.640625    1.509998  67867200.0
+1999-01-25    1.770833    1.833333    1.640625    1.812500    1.668188  12762000.0
+1999-01-26    1.833333    1.869792    1.645833    1.671875    1.538759   8580000.0
+1999-01-27    1.677083    1.718750    1.583333    1.666667    1.533965   6109200.0
+1999-01-28    1.666667    1.677083    1.651042    1.661458    1.529172   5688000.0
+...                ...         ...         ...         ...         ...         ...
+2020-05-04  280.880005  291.839996  280.880005  291.290009  291.290009   7938900.0
+2020-05-05  295.470001  300.269989  291.290009  293.739990  293.739990   9222400.0
+2020-05-06  296.929993  302.000000  295.410004  297.790009  297.790009   8086600.0
+2020-05-07  303.380005  307.410004  301.320007  304.869995  304.869995   9343300.0
+2020-05-08  307.750000  312.750000  306.390015  312.500000  312.500000   8480400.0
+\end{lstlisting}
+\caption{Information provided by yfinance on NVDA (NVIDIA Corp).}
+\end{figure}
+
+The field we are interested in is the close price: this is what we will be using to test for cointegration and evaluate performance. We will be using five years of stock data (2015-2019 inclusive) to provide an accurate image of the relationship between two stocks (is this an issue considering the ontology data we have?). In order to eliminate any missing data, i.e. if one ticker has information for a date that the other ticker doesn't, we merge both lists of time series by date and eliminate any NaN (missing) values.
+
+\section{Company selection}
+
+We
+
+<SPARQL query>
+
+\section{Testing}
+
+Our objective is to model long-term relationships between companies. In order to test this hypothesis, we will be utilising both the Engle-Granger two-step test and the Johansen test, both provided by the statsmodel Python package \parencite{statsmodelenglegranger} \parencite{statsmodeljohansen}.
+
+For the Engle-Granger test, the values returned are the t-statistic of unit-root test on residuals, MacKinnon’s approximate asymptotic p-value \parencite{mackinnon} and critical values for the test statistic at the 1\%, 5\%, and 10\% levels based on regression curve. The p-value is the value we are most interested in: a p-value less than 0.05 allows us to reject the null hypothesis and indicates that the two time series are cointegrated.
+
+For the Johansen test, the values returned are the trace and maximum eigenvalue statistics. The value we will be using to reject the null hypothesis is the trace statistic, the reason for choosing this over the maximum eigenvalue statistic is because we are only concerned with the presence of cointegration and not the number of linear combinations. Preliminary testing has revealed that the Johansen test is stricter than Engle-Granger in accepting pairs, as such we will be using the trace statistic to reject the null hypothesis at a 90\% confidence level in order to test whether pairs are cointegrated.
+
+If both tests indicate a cointegrating relationship, the pair will be added to a set of valid pairs allowing us to evaluate our hypothesis.
+
+In order to check for spurious relations, we will test different sets of data. Our control set will be tickers selected at random given by actively traded symbols from Nasdaq's symbol directory \parencite{nasdaq}. Our high attribute set will be made up of companies that share a significant amount of attributes and will be selected from the ontology. Pairs of companies in each set will be tested for cointegration, the purpose of which is to see if there is a difference in cointegration between companies selected at random and the companies we hypothesise will be cointegrated.
+
+Both sets will be preprocessed:
+\begin{itemize}
+    \item Any reflexive pairs (e.g. ("TSLA", "TSLA")) will be removed.
+    \item If there is an instance of a pair and reversed pair (e.g. ("INTC", "AMD") and ("AMD", "INTC")) in a set, one will be removed. In order to choose the pair to be removed, both will be tested for a cointegrating relationship. If any such relationship is found in exactly one pair, that pair will be retained. If a cointegrating relationship or no cointegrating relationship is found in both pairs, the pair with a lower index will be retained.
+    \item Any stock that has less than one year of stock history will be removed, an accurate measurement of cointegration cannot be garnered from a stock with this little data.
+\end{itemize}
+
+If our hypothesis is correct, we will be using pairs from each set to backtest a trading strategy on five years of historical stock data. It is important to note that this is simply to serve as a commentary on pairs trading and not a metric for success. Profitability for each pair over the entire year will be measured and compared against relevant index funds, e.g. SOXX in the case of a pair of semiconductor companies.
+
+The pairs trading strategy in question will utilise moving averages and z-score.
+
+\chapter{Results and Evaluation}
+\label{cha:Results and Evaluation}
+
+For our control set, 100 pairs of companies were generated randomly. Of these pairs, x had a p-value less than y, allowing us to reject the null hypothesis of no cointegration.
+
+For our high attribute set, x pairs of companies were generated with one or more attributes with another companies. Of these, 200 companies were selected from the set of the highest number of shared attributes. The distribution attributes to pairs is given below.
+
+\begin{table}[h]
 \begin{center}
-\begin{tabular}{|p{0.3\textwidth}|p{0.6\textwidth}|}
+\begin{tabular}{|p{0.5\textwidth}|p{0.5\textwidth}|}
 \hline
-column A & column B \\\hline
-row 1 &
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque quis quam at nisi iaculis aliquet vel et quam. \\\hline
-row 2 &
-Aliquam erat volutpat. Nam at velit a risus faucibus aliquet. Aenean egestas vehicula mi, quis rhoncus sem facilisis in. Interdum et malesuada fames ac ante ipsum primis in faucibus. Sed lobortis lacus quis mauris rutrum auctor. \\\hline
+Shared attributes & Number of pairs \\\hline
+7+ &
+12 \\\hline
+6 &
+11 \\\hline
+5 &
+20 \\\hline
+4 &
+55 \\\hline
+3 &
+111 \\\hline
+2 &
+212 \\\hline
+1 &
+1110 \\\hline
 \end{tabular}
 \end{center}
+\caption{Table showing the distribution of pairs selected with shared attributes.}
 \end{table}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque quis quam at nisi iaculis aliquet vel et quam. Aliquam erat volutpat. Nam at velit a risus faucibus aliquet. Aenean egestas vehicula mi, quis rhoncus sem facilisis in. Interdum et malesuada fames ac ante ipsum primis in faucibus. Sed lobortis lacus quis mauris rutrum auctor. Sed tristique imperdiet ligula, eu bibendum ante malesuada ac. Vestibulum leo ex, viverra ut felis quis, posuere aliquam lorem. Curabitur iaculis tempus mauris, vel dictum erat. Proin sed facilisis dui.
-
-Nunc lectus sapien, malesuada a ullamcorper eu, rutrum in tortor. Nam ac diam tellus. Duis nec faucibus erat. Phasellus euismod, elit eget scelerisque consequat, sapien lectus lobortis justo, sit amet posuere ipsum purus lacinia metus. Mauris bibendum eros nulla. In sit amet posuere lacus, sed pharetra dolor. Etiam vulputate nulla et porttitor sagittis. Curabitur id auctor odio. Ut mollis, ante sed sodales tincidunt, lectus erat mattis turpis, nec suscipit orci augue posuere arcu. Sed volutpat sagittis ipsum, dignissim commodo odio tristique non. Maecenas id auctor leo. Maecenas eu mauris id est porttitor tempus. Curabitur id purus ipsum. Ut tempus faucibus tellus, eu dignissim odio tincidunt id. Sed eu lacus dictum, venenatis tellus eu, egestas diam. Nulla quis libero nisl.
-
-Fusce congue mauris leo, nec sagittis justo convallis quis. Maecenas varius tellus vel nulla facilisis accumsan. Nunc in facilisis nulla. Suspendisse ac molestie ante. Duis vulputate sit amet tellus eget efficitur. Cras ut dolor at dolor molestie dignissim. Proin eu massa dapibus, feugiat quam auctor, porttitor urna. Integer porttitor, libero a egestas lacinia, neque leo luctus elit, id iaculis leo quam porta est. Integer ut porttitor tortor.
-
-Donec felis sem, consectetur eu cursus ac, auctor sollicitudin velit. Sed hendrerit, metus et gravida vulputate, urna lacus facilisis neque, sed accumsan tellus nibh vel metus. Ut tempus felis neque, vitae rutrum ligula tristique sit amet. Morbi nec dui lectus. Ut fringilla orci in faucibus sodales. Integer dolor arcu, pellentesque a blandit non, volutpat vitae sem. Curabitur sit amet nunc tincidunt, mollis purus in, luctus eros.
-
-Donec vitae eros purus. Quisque lacinia risus nisi. Maecenas bibendum augue vel vehicula scelerisque. Nullam suscipit risus porttitor ornare sollicitudin. Vestibulum eget felis at quam cursus congue id id odio. Vestibulum convallis eros ac enim pharetra, sed ornare magna imperdiet. Etiam sagittis rhoncus augue. Pellentesque sit amet mi rhoncus, pretium mauris at, suscipit turpis. Aliquam finibus dolor et velit luctus volutpat. Nunc est velit, ultricies sed elementum non, condimentum in risus.
-
+Of these pairs, x had a p-value less than y, allowing us to reject the null hypothesis of no cointegration.
 
 \chapter{Conclusion}
 \label{cha:conclusion}
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque quis quam at nisi iaculis aliquet vel et quam. Aliquam erat volutpat. Nam at velit a risus faucibus aliquet. Aenean egestas vehicula mi, quis rhoncus sem facilisis in. Interdum et malesuada fames ac ante ipsum primis in faucibus. Sed lobortis lacus quis mauris rutrum auctor. Sed tristique imperdiet ligula, eu bibendum ante malesuada ac. Vestibulum leo ex, viverra ut felis quis, posuere aliquam lorem. Curabitur iaculis tempus mauris, vel dictum erat. Proin sed facilisis dui.
-
-Nunc lectus sapien, malesuada a ullamcorper eu, rutrum in tortor. Nam ac diam tellus. Duis nec faucibus erat. Phasellus euismod, elit eget scelerisque consequat, sapien lectus lobortis justo, sit amet posuere ipsum purus lacinia metus. Mauris bibendum eros nulla. In sit amet posuere lacus, sed pharetra dolor. Etiam vulputate nulla et porttitor sagittis. Curabitur id auctor odio. Ut mollis, ante sed sodales tincidunt, lectus erat mattis turpis, nec suscipit orci augue posuere arcu. Sed volutpat sagittis ipsum, dignissim commodo odio tristique non. Maecenas id auctor leo. Maecenas eu mauris id est porttitor tempus. Curabitur id purus ipsum. Ut tempus faucibus tellus, eu dignissim odio tincidunt id. Sed eu lacus dictum, venenatis tellus eu, egestas diam. Nulla quis libero nisl.
-
-Fusce congue mauris leo, nec sagittis justo convallis quis. Maecenas varius tellus vel nulla facilisis accumsan. Nunc in facilisis nulla. Suspendisse ac molestie ante. Duis vulputate sit amet tellus eget efficitur. Cras ut dolor at dolor molestie dignissim. Proin eu massa dapibus, feugiat quam auctor, porttitor urna. Integer porttitor, libero a egestas lacinia, neque leo luctus elit, id iaculis leo quam porta est. Integer ut porttitor tortor.
-
-Donec felis sem, consectetur eu cursus ac, auctor sollicitudin velit. Sed hendrerit, metus et gravida vulputate, urna lacus facilisis neque, sed accumsan tellus nibh vel metus. Ut tempus felis neque, vitae rutrum ligula tristique sit amet. Morbi nec dui lectus. Ut fringilla orci in faucibus sodales. Integer dolor arcu, pellentesque a blandit non, volutpat vitae sem. Curabitur sit amet nunc tincidunt, mollis purus in, luctus eros.
 
 \appendix
-\chapter{Some apendix}
-Fusce congue mauris leo, nec sagittis justo convallis quis. Maecenas varius tellus vel nulla facilisis accumsan. Nunc in facilisis nulla. Suspendisse ac molestie ante. Duis vulputate sit amet tellus eget efficitur. Cras ut dolor at dolor molestie dignissim. Proin eu massa dapibus, feugiat quam auctor, porttitor urna. Integer porttitor, libero a egestas lacinia, neque leo luctus elit, id iaculis leo quam porta est. Integer ut porttitor tortor.
+\chapter{Sets of pairs}
 
-\chapter{Another apendix}
-Donec felis sem, consectetur eu cursus ac, auctor sollicitudin velit. Sed hendrerit, metus et gravida vulputate, urna lacus facilisis neque, sed accumsan tellus nibh vel metus. Ut tempus felis neque, vitae rutrum ligula tristique sit amet. Morbi nec dui lectus. Ut fringilla orci in faucibus sodales. Integer dolor arcu, pellentesque a blandit non, volutpat vitae sem. Curabitur sit amet nunc tincidunt, mollis purus in, luctus eros.
+Control set pairs:
 
+NUS/HGG, RGC/FPRX, CNOB/GNE, FUEL/WSFS, PEP/FOSL, EXP/PBYI, PCLN/JBL, HOMB/GABC, IDRA/WEN, WAB/ORIT, ECOM/ESNT, BBGI/MSFG, NCMI/XOMA, TRS/SMRT, SONC/BERY, REN/MTG, AMTD/CBM, MNR/HWCC, WMK/DISH, WOR/DG, NSM/SKT, XOMA/MSA, DAL/BAS, RSPP/VECO, ZLTQ/UTI, TXT/MTX, PNR/ANIK, VR/IRBT, UEC/PCTI, LGIH/DO, IMMR/MCF, CTT/CASH, CPSI/XCO, WSM/CARB, ACET/IR, MCY/MLNK, WHG/ROP, MCK/EPM, BREW/CRAY, EXEL/TMO, EXPR/CACB, NIHD/RTEC, CHSP/SMP, BBBY/NLS, PPC/IPXL, IRET/ELS, OPK/C, TNC/EBIX, HSTM/MCBC, AET/PTEN, INSM/GSBD, NCMI/GBDC, ACHN/SAIA, QSII/COG, EGN/EQR, TAT/XEL, HSNI/ACM, OREX/MNKD, LE/CLI, AMBR/V, NATH/TECD, STLD/IT, BBSI/UVSP, ATSG/MCY, SALM/HWAY, AHP/REN, MACK/REIS, CYS/TRMR, SCCO/LGF, EEFT/HII, IPGP/BREW, SATS/X, AGM/OCN, APEI/BWINB, ACLS/BMTC, STE/CORR, MXWL/GSAT, FSTR/COP, LEG/WG, FLR/EBS, BOBE/GPI, NEM/DRI, DYN/NSP, NR/WHR, PFG/EHTH, ELS/CAKE, CHMT/HAL, SPN/LUV, GNMK/BAH, MYL/CJES, ABT/CTO, TXT/PBPB, SCAI/SHOS, MENT/NHI, ALNY/SFNC, CCBG/PICO, LIFE/NKSH, CRS/GNMK, PEBO/AME, XLRN/SEAC
+
+High attribute set pairs: 
 
 \printbibliography
 
