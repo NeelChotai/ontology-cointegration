@@ -1,16 +1,16 @@
-import os
-import sys
+from os import path
+from sys import stdout
 from datetime import datetime
-import random
+from random import choice
+from enum import Enum
+from statsmodels.tsa.stattools import coint
+from statsmodels.tsa.vector_ar.vecm import coint_johansen
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from statsmodels.tsa.stattools import coint
-from statsmodels.tsa.vector_ar.vecm import coint_johansen
+import yfinance as yf
 import rdflib
 import pickle
-import yfinance as yf
-from enum import Enum
 
 class coint_return(Enum):
     RELATIONSHIP = 0
@@ -23,14 +23,14 @@ def populate(cache_file):
     # for ease of programming
     # the graph data structure is enormous, pickling prevents regenerating the same structure every run
 
-    if os.path.isfile(cache_file):
+    if path.isfile(cache_file):
         infile = open(cache_file, "rb")
         graph = pickle.load(infile)
         infile.close()
     else:
         graph = rdflib.Graph()
         
-        for x in range(0, 29):
+        for x in range(29):
             graph.parse("data/ownership-{}.nt".format(str(x)), format="nt")
         
         outfile = open(cache_file, "wb")
@@ -86,15 +86,15 @@ def cointegrate(ticker1, ticker2):
         return coint_return.RELATIONSHIP
     return coint_return.NO_RELATIONSHIP
 
-def random_companies(sample_size):
+def random_count(size):
     count = 0
     random_set = []
 
     with open("stocks.txt") as stocks:
         tickers = stocks.read().split(",")
     
-    for x in range(sample_size): # preprocessing of control set
-        pair = (random.choice(tickers), random.choice(tickers))
+    for x in range(size): # preprocessing of control set
+        pair = (choice(tickers), choice(tickers))
         reversed_pair = reversed(pair)
         result_random = cointegrate(pair[0], pair[1])
 
@@ -114,28 +114,46 @@ def random_companies(sample_size):
             random_set.append(pair)
             
     for pair in random_set: # testing cointegration of control set
-        result = cointegrate(pair[0], pair[1])
-        if result == coint_return.RELATIONSHIP:
+        if cointegrate(pair[0], pair[1]) == coint_return.RELATIONSHIP:
             count += 1
-
-        #sys.stdout.write("{}/{}, ".format(pair[0], pair[1])) # to get results
+        #stdout.write("{}/{}, ".format(pair[0], pair[1])) # to get results
 
     return count
 
-def preprocess(stocks):
+def high_attribute_count(stocks):
+    # preprocessing of high attribute set
+    # input of stock pairs will be random, first: sort by descending key = relationship count
     # remove reflexive pairs
     # remove reversed pairs after testing
     # remove pairs with less than one year of history
-    
-    return stocks
+    # if pair fails the above tests, increment preprocessing counter
+    # otherwise, add pair a list of processed stocks
+    # also check attributes and add to dictionary for distribution of relationships
+    # once preprocessing counter hits 100, test for cointegration
+    count = 0
+    high_attribute_set = []
 
-def cointegration_count(stocks): # this will probably just be appended to the end
-    for pair in stocks:
+    for pair in high_attribute_set: # testing cointegration of high attribute set
         if cointegrate(pair[0], pair[1]) == coint_return.RELATIONSHIP:
             count += 1
-            #sys.stdout.write("{}/{}, ".format(pair[0], pair[1]))
 
     return count
+
+def backtest(ticker1, ticker2):
+    start_date = datetime(2015, 1, 1)
+    end_date = datetime(2020, 1, 1)
+    
+    series1 = yf.download(ticker1, period="10y").filter(["Date", "Open"])
+    series2 = yf.download(ticker2, period="10y").filter(["Date", "Open"])
+    print(series1)
+    merged = pd.merge(series1, series2, how="outer", on=["Date"])
+    merged.dropna(inplace=True)
+    merged.reset_index(inplace=True, drop=False)
+    merged.rename(inplace=True, columns={"Open_x": ticker1, "Open_y": ticker2})
+    mask = (merged["Date"] >= start_date) & (merged["Date"] < end_date)
+    merged = merged.loc[mask]
+
+    return merged
 
 #graph = populate(cache_file)
 
@@ -144,4 +162,4 @@ def cointegration_count(stocks): # this will probably just be appended to the en
 #    print(row)
 #    print("\n")
 
-print(random_companies(100))
+print(backtest("MA", "V"))
