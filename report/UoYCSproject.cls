@@ -62,6 +62,8 @@
 \renewcommand\familydefault{\sfdefault} 
 \usepackage[T1]{fontenc}
 
+\usepackage{listings}
+
 \pagestyle{headings}
 \renewcommand{\partpagestyle}{empty}
 
@@ -113,7 +115,7 @@
 
 \titlehead{ \hfill Department of Computer Science\\\vspace{32pt}
 \begin{center}
-\includegraphics[height = 1in]{"./UoY"}\\
+\includegraphics[height = 1in]{"./images/UoY"}\\
 \vspace{32pt}
   \ifx\UoYCSP@degree\undefined%
     \ClassError{UoYCSproject}%
