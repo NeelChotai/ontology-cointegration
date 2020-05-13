@@ -1,1 +1,5 @@
-.history/
+history
+.history
+src/history
+src/.history
+src/__pycache__
