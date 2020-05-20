@@ -79,13 +79,18 @@ def cointegrate(ticker1, ticker2):
 
     johansen_frame = pd.DataFrame(
         {"x": merged["Open_x"], "y": merged["Open_y"]})
-    score, p_value, _ = coint(merged["Open_x"], merged["Open_y"])
-    johansen = coint_johansen(johansen_frame, 0, 1)
 
-    return p_value
-    #if p_value < 0.05 and johansen.cvt[0][1] < johansen.lr1[0]: # calculates cointegration using p-value and trace statistic (95% confidence)
-    #    return coint_return.RELATIONSHIP
-    #return coint_return.NO_RELATIONSHIP
+    try:  # weird divide by zero error here on occassion
+        score, p_value, _ = coint(merged["Open_x"], merged["Open_y"])
+        johansen = coint_johansen(johansen_frame, 0, 1)
+    except:
+        return coint_return.INVALID
+
+    # return p_value
+    # calculates cointegration using p-value and trace statistic (95% confidence)
+    if p_value < 0.05 and johansen.cvt[0][1] < johansen.lr1[0]:
+        return coint_return.RELATIONSHIP
+    return coint_return.NO_RELATIONSHIP
 
 
 def directorship_query(graph):
@@ -224,9 +229,9 @@ def random_count():
             # only remaining possibility is neither pair has a cointegrating relationship
         else:
             random_set.append(pair)
-            
+
         size += 1
-        
+
         if size >= 150:
             break
 
@@ -259,7 +264,8 @@ def pair_count(companies):
         reversed_pair = (pair[1], pair[0])
         result_pair = cointegrate(pair[0], pair[1])
 
-        if pair[0] == pair[1] or pair in pair_set or result_pair == coint_return.INVALID: # yes, this level of micromanagement is necessary
+        # yes, this level of micromanagement is necessary
+        if pair[0] == pair[1] or pair in pair_set or result_pair == coint_return.INVALID:
             size -= 1
         elif reversed_pair in pair_set:
             # since this pair is in the set, coint_return will never be invalid
@@ -275,7 +281,7 @@ def pair_count(companies):
             pair_set.append(pair)
 
         size += 1
-        
+
         if size >= 150:
             break
 
@@ -297,14 +303,85 @@ def pair_count(companies):
         pair_output.write("\nPairs with a cointegrating relationship:\n")
         for pair in pair_coint:
             pair_output.write("{}/{}, ".format(pair[0], pair[1]))
-        pair_output.write("\nDistribution of attributes (number of attributes: frequency):\n")
+        pair_output.write(
+            "\nDistribution of attributes (number of attributes: frequency):\n")
         for key in pair_counts:
             pair_output.write("{}/{}, ".format(key, pair_counts[key]))
     return count
 
 
-#graph = populate(cache_file)
-#director_pairs = pair_people(directorship_query(graph))
-#employee_pairs = pair_people(employee_query(graph))
+def generate_random_set(size):
+    count = 0
+    random_set = []
 
-print(yf.download("NVDA", rounding=True))
+    with open("stocks.txt") as stocks:
+        tickers = stocks.read().split(",")
+
+    while True:
+        pair = (choice(tickers), choice(tickers))
+
+        if pair[0] == pair[1] or pair in random_set or cointegrate(pair[0], pair[1]) == coint_return.INVALID:
+            count -= 1
+        else:
+            random_set.append(pair)
+
+        count += 1
+
+        if count >= size:
+            break
+
+    return random_set
+
+
+def generate_test_set(input_dict, size):
+    count = 0
+    pairs = list(input_dict)  # we only care about keys
+    pair_set = []
+
+    while True:
+        pair = choice(pairs)
+
+        if pair[0] == pair[1] or pair in pair_set or cointegrate(pair[0], pair[1]) == coint_return.INVALID:
+            size -= 1
+        else:
+            pair_set.append(pair)
+
+        count += 1
+
+        if count >= size:
+            break
+
+    return pair_set
+
+
+def sampling(companies):
+    total_cointegrated = 0
+
+    for pair in companies:
+        if cointegrate(pair[0], pair[1]) == coint_return.RELATIONSHIP:
+            total_cointegrated += 1
+
+    return total_cointegrated
+
+
+graph = populate(cache_file)
+
+director_pairs = pair_people(directorship_query(graph)) # sorted dictionaries of pair: attributes
+employee_pairs = pair_people(employee_query(graph))
+
+director_pairs_high = [x for x in list(director_pairs) if director_pairs[x] >= 1]
+employee_pairs_high = [x for x in list(employee_pairs) if employee_pairs[x] >= 1]
+
+director_sampling, employee_sampling = [], []
+
+for x in range(10):  # 10 samples of 30 pairs
+    director_set = generate_test_set(director_pairs_high, 30)
+    employee_set = generate_test_set(employee_pairs_high, 30)
+
+    director_sampling.append(sampling(director_set))
+    employee_sampling.append(sampling(employee_set))
+
+print("Director set average: {}".format(np.mean(director_sampling)))
+print("Director set: {}".format(director_sampling))
+print("Employee set average: {}".format(np.mean(employee_sampling)))
+print("Employee set: {}".format(employee_sampling))
