@@ -17,15 +17,15 @@
 \begin{summary}
 This report investigates if pairs of publicly traded companies that have links in a semantic graph are more likely to have a cointegrating relationship. We identify thousands of pairs of companies with such links stored in a semantic web ontology made up of reports submitted to the United States Securities and Exchange Commission (SEC). The ontology contains information about people, companies, and the relationship between the two, such as job title, percentage ownership, and directorship status. Using these attributes, we measured the relationship between pairs of companies and tested whether or not the stock prices were cointegrated.
 
-This project aims to distill real-world links between companies into something quantifiable. Being able to accurately gauge the closeness of two companies can be useful for portfolio diversification, pairs trading, and other statistical arbitrage strategies. Firmly placing prominent employees in the spotlight has consequences for existing or potential future investments; a large shift in the number of employees two companies share could be used as a proxy measure to re-evaluate an investment.
+This project aims to distill real-world links between companies into something quantifiable. Being able to accurately gauge the closeness of two companies can be useful for portfolio diversification, pairs trading, and other statistical arbitrage strategies. Firmly placing prominent employees in the spotlight has consequences for existing or potential future investments; a large shift in the number of employees two companies share could be used to signal to indicate that an investment requires re-evaluation.
 
-The motivation for this project is simple: the nature of financial strategies leads to proprietary research and methods. We seek to change this by providing an automated way of selecting cointegrated pairs for statistical arbitrage methods. Ontologies are seeing increasing use in the fields of medicine and artificial intelligence. We seek to introduce another use case for this complex and powerful data structure as an alternative to traditional methods, specifically to the field of finance.
+The motivation for this project is simple: the nature of financial strategies leads to proprietary research and methods. We seek to change this by providing an automated way of selecting cointegrated pairs for statistical arbitrage methods. Ontologies are seeing increased use in the fields of medicine and artificial intelligence. We seek to introduce another use case for this complex and powerful data structure as an alternative to traditional methods, specifically to the field of finance.
 
-Our approach is centred around cointegration: the measure we used to determine whether or not companies are linked. Cointegration is often used in pairs trading to determine how close the relationship between two companies is. We sought to identify cointegrated companies with high confidence, using multiple tests to ensure that the relationship we inferred was indeed robust.
+Our approach is centred around cointegration: the measure we use to determine whether or not companies are linked. Cointegration is often used in pairs trading to determine how close the relationship between two companies is. We sought to identify cointegrated companies with high confidence, using multiple tests to ensure that the relationship we inferred was indeed robust.
 
 The first method tests the idea that pairs of companies that share a greater number of employees are more likely to be cointegrated than those selected at random. Therefore, by creating a list with pairs of companies and analysing the number of relationships they have, we can create a subset of companies with the most connections in this dataset and test our hypothesis.
 
-The second method uses sampling to randomly select companies, providing a better picture of the entire dataset. Two test sets were created, one containing pairs of companies that shared employees and one containing pairs of companies that shared directors - both given by the ontology. Iteratively, the constraint on the minimum number of relationships between the pairs each set was increased to identify the relationship between sharing a greater number of attributes and the presence of cointegration. A control set was created from randomly generated companies, from the Nasdaq stock exchange, to assist in this comparison.
+The second method uses sampling to randomly select companies, providing a better picture of the entire dataset. Two test sets were created, one containing pairs of companies that shared employees and one containing pairs of companies that shared directors - both given by the ontology. Iteratively, the constraint on the minimum number of relationships between the pairs in each set was increased to identify the relationship between sharing a greater number of attributes and the presence of cointegration. A control set was created from randomly generated companies, from the Nasdaq stock exchange, to assist in this comparison.
 
 The investigation determined that the hypothesis has some merit. In both tests, pairs selected by the number of shared employees substantially outperformed the control set. A point of contention was the directorship set which produced no measurable increase in selecting cointegrated companies compared to random generation. Future work could concentrate more specifically on the number of employees two companies share, which was the most promising method. More data would be another useful addition - comparing the cointegration of companies over time, especially in the case both companies lose or gain mutual employees, would provide a meaningful insight into the long-term implications of this relationship.
 
@@ -39,9 +39,9 @@ Pairs trading is a form of statistical arbitrage where the trader takes out both
 
 Information from SEC reports stored in web ontologies, such as directorship, percentage ownership, and company affiliation, may be key to finding highly cointegrated pairs. For example, the case may be that two companies that share directors have a high degree of correlation, cointegrate well, and so are ideal candidates for pairs trading. Using this information and historical stock data, we can test our hypothesis.
 
-This report marries together the fields of computer science and economics by seeking to identify whether attributes shared between publicly traded companies have a statistically significant effect on their pairs trading performance. Given a pair of companies that share directors or other employees, we expect the ratio of their prices (i.e., the spread) to remain constant over time. On occasion, there will be a divergence in the spread which may be caused by important news, liquidity, or volatility. Over time, we expect that this spread will return to normal and thus we can profit from this by making a pairs trade.
+This report marries together the fields of computer science and economics by seeking to identify whether attributes shared between publicly traded companies have a statistically significant effect on their pairs trading performance. Given a pair of companies that share directors or other prominent employees, we expect the ratio of their prices (i.e., the spread) to remain constant over time. On occasion, there will be a divergence in the spread which may be caused by important news, liquidity, or volatility. Over time, we expect that this spread will return to normal and thus we can profit by making a pairs trade.
 
-We believe that companies with a greater number of relationships within our web ontology, populated with information from SEC reports, will make superior candidates for pairs trading. Our methodology will test to see if companies that share these attributes cointegrate well, visually display their relationship, and show how the stocks of these companies move over time.
+We believe that companies with a greater number of relationships within our web ontology, populated with information from SEC reports, will be superior candidates for pairs trading. Our methodology will test to see if companies that share these attributes cointegrate well, visually display their relationship, and show how the stocks of these companies move over time.
 
 \chapter{Literature Review}
 \label{cha:Literature Review}
@@ -52,7 +52,7 @@ This chapter will assess the viability of this project by focusing on three main
 
 The Semantic Web is an extension of the World Wide Web with the goal of making stored data machine-readable. In contrast to the World Wide Web, which links together data machines have no understanding or context of, the Semantic Web provides an account of meaning, a logical connection \parencite{semanticrevisited}. In the World Wide Web, two databases may use completely different identifiers for the same concept, a program intending to utilise this data needs to know that these two terms mean the same thing. Bernes-Lee et al. describe ontologies as the solution for this assortment of uncontextulised data using the idea of subjects and relations to describe links between items of data, inference rules to allow for more effective ways to manipulate data, and a unified interface to increase software efficiency \parencite{semanticontologies}.
 
-Ontologies are a representation of concepts within a domain, the concepts being categories, properties, and relationships between data and entities. Simply put, an ontology shows us characteristics of a subject and how these are related to other characteristics and subjects. In our case, the subjects will be people and companies; characteristics will be things like job title, directorship status, and the stock ticker. Ontologies have multiple benefits, as have been noted by Uschold and Gruninger \parencite{ontdef}, such as ease of programming implementation, informative visualisation but the principal among them being that ontologies remove the barrier caused by disparate backgrounds, languages, tools, and techniques by providing a single unified interface to a dataset. Ontologies also provide more knowledge about the domain of the data, allowing us to more accurately and easily model relationships.
+Ontologies are a representation of concepts within a domain, the concepts being categories, properties, and relationships between data and entities. Simply put, an ontology shows us characteristics of a subject and how these are related to other characteristics and subjects. In our case, the subjects will be people and companies; characteristics will be things like job title, directorship status, and the stock ticker. Ontologies have multiple benefits, as have been noted by Uschold and Gruninger, such as ease of programming implementation, informative visualisation, but the principal among them being that ontologies remove the barrier caused by disparate backgrounds, languages, tools, and techniques by providing a single unified interface to a dataset \parencite{ontdef}. Ontologies also provide more knowledge about the domain of the data, allowing us to more accurately and easily model relationships.
 
 Ontologies have been used in other fields for much the same reason we believe they will be a better source of information than a simple database. Frank examines how ontologies can be used to improve the consistency of data coming from many different sources \parencite{ontgeog}. Instead of consistency constraints and database schemas, ontologies easily integrate data from different sources into a single system, eliminating erroneous data and allowing our dataset to become more extensible, giving us an easy way to new add data in the future. Smith et al. have described the use of ontologies in the biomedical field for the purpose of disambiguation \parencite{ontbio}. Smith et al. found that ontologies are more consistent and unambiguous compared to a traditional database in the case of medical vocabulary where two completely unrelated procedures or medicines may share the same name or abbreviation. This is particularly useful for us - for example, if multiple people have the same name, ontologies provide a better way to link together information and an easy interface to visualise these relationships.
 
@@ -66,12 +66,11 @@ In a study by Huck and Afawubo comparing multiple ways to select pairs, cointegr
 
 \section{Cointegeration}
 
-Two time series variables are cointegrated if the expected value of the ratio converges to the mean over time. Granger defines cointegration as follows \parencite{cointdef}:
-Take two series, $x_{t}$ and $y_{t}$, each of which is integrated of order 1 (\emph{I}(1)) and has no drift or trend in mean. Generally, any linear combination of these series is also \emph{I}(1). However, if there exists some constant A, such that
+Two time series variables are cointegrated if the expected value of the ratio converges to the mean over time. Granger defines cointegration as follows: take two series, $x_{t}$ and $y_{t}$, each of which is integrated of order 1 (\emph{I}(1)) and has no drift or trend in mean. Generally, any linear combination of these series is also \emph{I}(1). However, if there exists some constant A, such that
 
 \[z_t = x_t - Ay_t\]
 
-is \emph{I}(0), $x_t$ and $y_t$ are said to be cointegrated with A being the cointegrating parameter. Several testing methodologies are available to find out if two time series are cointegrated, the most popular being the Engle-Granger and Johansen tests.
+is \emph{I}(0), $x_t$ and $y_t$ are said to be cointegrated with A being the cointegrating parameter \parencite{cointdef}. Several testing methodologies are available to find out if two time series are cointegrated, the most popular being the Engle-Granger and Johansen tests.
 
 The Engle-Granger methodology is carried out in two steps. The first step is to create residuals based on the static regression of two time series and the second step is to test these residuals for the presence of unit roots, typically done using the augmented Dickey-Fuller test \parencite{englegranger} \parencite{adf}. If the p-value returned by this test is sufficiently low, we can reject the null hypothesis of no cointegration.
 
@@ -90,7 +89,7 @@ The reason cointegration is preferable for pair selection instead of correlation
 
 \section{Objectives}
 
-Our main intention is to elucidate whether these links between companies have any effect on their market price. This information could provide a substantial benefit to a pairs trading strategy which ordinarily requires expert knowledge on position sizing, market timing, and good decision making. Automating the decision making factor could lead to a more profitable and reliable strategy.
+Our main intention is to elucidate whether these links between companies have any effect on their market prices. This information could provide a substantial benefit to a pairs trading strategy which ordinarily requires expert knowledge on position sizing, market timing, and good decision making. Automating the decision making factor could lead to a more profitable and reliable strategy.
 
 Pairs trading is not the only use for identifying closely correlated pairs: cointegrated pairs could be used, for example, to diversify investment in a sector. If an investor felt bullish on semiconductors, they may want to take out multiple positions in cointegrated companies instead of a single position in one.
 
@@ -102,7 +101,7 @@ Huck and Afawubo remark that strategies implemented are proprietary in nature \p
 
 Another reason is to provide some additional information to the efficient market hypothesis \parencite{efficientmarket}, a theory that has led to much discussion and dispute. The information garnered from web ontologies may provide credence to classifying our market as semi-strong form.
 
-Understanding market trends is useful for more than merely turning a profit. Market analysis can aid us in extrapolating information about sector saturation, the emergence of new products and technologies, and understanding of people's needs through demand.
+Understanding market trends is useful for more than merely turning a profit. Market analysis can aid us in extrapolating information about sector saturation, the emergence of new products and technologies, and allow us to understand the needs of people through demand.
 
 \subsection{Alphabet}
 
@@ -147,13 +146,13 @@ The method to test our hypothesis is split into two parts: selecting pairs and t
 
 In order to select pairs, we will be utilising information garnered from SEC reports, in the form of a web ontology, and the Nasdaq stock exchange to compile three sets of pairs of companies. One set of pairs will be selected at random, one set of pairs will be selected by shared directorship and one set of pairs will be selected by shared prominent employees. We believe that the latter two sets have a higher likelihood of containing cointegrated pairs.
 
-To test for cointegration, we will be using historical stock data for the companies from the Nasdaq stock exchange. Each pair in the three sets will be tested to see how well they cointegrate and the total number of cointegrated pairs will be compared across sets.
+To test for cointegration, we will be using historical stock data for the companies from Yahoo Finance. Each pair in the three sets will be tested to see how well they cointegrate and the total number of cointegrated pairs will be compared across sets.
 
 As an additional test, we will randomly sample each of the sets and test how many pairs are cointegrated, comparing the averages across sets with the intent of limiting bias as much as possible.
 
 \section{Data}
 
-The data from the web ontology is stored in N-Triples format and gives different information depending on the entity. The ontology file consists exclusively of lines containing either statements or comments. N-Triples statements have four parts: the subject, predicate, object, and a full stop which marks the end of the statement. N-Triples comments consist of the information pertaining to the predicate.\newpage
+The data from the web ontology is stored in N-Triples format and gives different information depending on the entity. The ontology files consists exclusively of lines containing either statements or comments. N-Triples statements have four parts: the subject, predicate, object, and a full stop which marks the end of the statement. N-Triples comments consist of the information pertaining to the predicate.\newpage
 
 \begin{figure}[t]
 \begin{center}
@@ -203,7 +202,7 @@ The historical stock data is provided by the yfinance Python module (through Yah
 \caption{Information provided by yfinance on NVDA (NVIDIA Corp).}
 \end{figure}
 
-The field we are interested in is the open price which is what we will be using to test for cointegration. In total, we will be using two years of stock data (between 2016-2018 inclusive) to provide an accurate image of the relationship between two stocks. To eliminate any missing data, i.e., if one ticker has information for a date that the other ticker doesn't, we merge both lists of time series by date and drop any rows with NaN (missing) values.
+The field we are interested in is the open price which is what we will be using to test for cointegration. In total, we will be using two years of stock data (between 2016-2018 inclusive) to provide an accurate image of the relationship between two stocks. To eliminate any missing data, i.e., if one ticker has information for a date that the other ticker does not, we will merge both lists of time series by date and drop any rows with NaN (missing) values.
 
 \section{Pair selection}
 
@@ -371,10 +370,10 @@ Examining the histograms above, we can note that there is not a significant degr
 \multicolumn{1}{|c|}{} & Employees set & 4208 & 483 & 336 \\ \hline
 \end{tabular}
 \end{center}
-\caption{Table showing the average number of cointegrated pairs, for the directors and employees sets, from sampling.}
+\caption{Table showing the average number of cointegrated pairs and total number of pairs for the directors and employees sets from sampling.}
 \end{table}
 
-After taking ten samples of 30 pairs of companies a total of 3 times, the average number of cointegrated companies in the control set was 1.5.
+After taking ten samples of 30 pairs of companies a total of three times, the average number of cointegrated companies in the control set was 1.5.
 
 From the sampled data displayed in table 5.2, we can deduce that the employees set has a much higher likelihood of containing cointegrated pairs given a large number of shared attributes. It is apparent that there is a correlation between the number of shared attributes and the number of cointegrated companies in the employees set, however this is not shared by the directors set which performs worse than the control set despite restraining the attribute count.
 
@@ -384,7 +383,7 @@ The total cointegrated pairs per sample can be found in appendix B.\newpage
 \begin{center}
 \includegraphics[scale=0.7]{"./images/sampling"}
 \end{center}
-\caption{Bar graph showing average cointegrated pairs for directors and employees sets from sampling with red line to indicate control set average.}
+\caption{Bar graph showing the average cointegrated pairs for the directors and employees sets from sampling with a red line to indicate control set average.}
 \end{figure}
 
 \section{Evaluation}
@@ -397,7 +396,7 @@ The employees set provided promising results in both methods, drastically outper
 
 The inclusion of a control set shows us the difference between correlation and computation; an investor could randomly generate cointegrated companies and outperform company selection by directorship. However, there is empirical evidence of a link between the number of prominent employees two companies share and the cointegration of their stocks, which may have other implications or desirable traits over companies selected randomly. For example, a drastic drop in shared employees between quarters could signal investors that something is amiss. Similarly, a large influx of employees could lead to a closer cointegrating relationship and may cause the investor to reconsider the size of their position.
 
-The interfaces used to obtain the data, yfinance and SPARQL, performed well; yfinance provided immediate access to accurate historical stock information and SPARQL enabled easy querying over a large dataset while avoiding the pitfalls associated with traditional databases. One issue that arose was inconsistent patterns with classes of tickers: for example, Berkshire Hathaway Inc. is traded as both BRK-A (class A) and BRK-B (class B). The way a ticker is formatted was a problem: BRK-A can take the form BRK.A, BRK/A, or BRKA depending on the source providing the stock information and similarly for BRK-B. Manual intervention was required to fix these inconsistencies.
+The interfaces used to obtain the data, yfinance and SPARQL, performed well; yfinance provided immediate access to accurate historical stock information and SPARQL enabled easy querying over a large dataset while avoiding the pitfalls associated with traditional databases. One issue that arose was inconsistent formatting with classes of tickers: for example, Berkshire Hathaway Inc. is traded as both BRK-A (class A) and BRK-B (class B). BRK-A can take the form BRK.A, BRK/A, or BRKA depending on the source providing the stock information and similarly for BRK-B. Manual intervention was required to fix these inconsistencies.
 
 \chapter{Conclusion}
 \label{cha:conclusion}
@@ -406,7 +405,7 @@ Our hypothesis is that companies that share relationships in the semantic graph,
 
 Given the information used in the report has been in the form of publicly available SEC reports and historical stock information, the results provide some credence to classifying our stock markets as semi-strong form. Semi-strong form efficiency contends that publicly available information is priced into securities, and changes to the equilibrium reflect changes to that information. Knowing that companies that share a large number of employees have stocks that tend to move together, we can infer that this information is priced into securities.
 
-For further work, more data would have been useful in order to test cointegration over time. As the SEC reports in the ontology were exclusively from Q1 2017 and cointegration was tested for months in which we did not have SEC data, cointegration may have been spurious or potentially cointegrated companies could have slipped through. As an example, in our Motivation, we state that the companies Visa and Mastercard are cointegrated but this pair fails our cointegration test within the time period tested.
+For further work, more data would be useful in order to test cointegration over time. As the SEC reports in the ontology were exclusively from Q1 2017 and cointegration was tested for months in which we did not have SEC data, cointegration may have been spurious or potentially cointegrated companies could have slipped through. As an example, in our Motivation, we state that the companies Visa and Mastercard are cointegrated but this pair fails our cointegration test within the time period tested.
 
 When testing cointegration, we have been testing the opening prices of the stocks for both companies. However, this does not take into account that pairs of companies may be cointegrated with the market rather than each other. In order to eliminate this, an index fund could be used as a confounding variable. For example, for companies based in the United States, the S\&P 500 (SPX) index could be tested for cointegration per company using the Engle-Granger test and for the pair of companies and the index using the Johansen test.
 
@@ -414,7 +413,7 @@ Some items of data had erroneous formatting: for example, some ticker strings in
 
 With that being said, the information provided by the ontology was instrumental in delivering the results obtained. With a slightly modified approach, the same methodology could be applied to a new ontology with different data. Research by Liu et al. has delved in to feature extraction from news articles and embedding this data in a knowledge graph \parencite{deeplearning}, it may be possible to use this or similar techniques to create a real-time, more data-rich ontology.
 
-Focusing exclusively on the number of employees two companies share could lead to better results in the future. The population of the employees set is abundant at a high number of attributes and lends itself to a more fine-grained approach to company selection. Displaying that this link exists opens the door to a closer inspection of this particular relationship.
+Focusing exclusively on the number of employees two companies share could lead to more interesting results in the future. The population of the employees set is abundant at a high number of attributes and lends itself to a more fine-grained approach in regards to company selection. Displaying the existence of this link opens the door to a closer inspection of this particular relationship.
 
 \appendix
 \chapter{Method 1: sets of pairs}
