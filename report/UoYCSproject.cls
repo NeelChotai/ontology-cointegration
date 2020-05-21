@@ -63,6 +63,8 @@
 \usepackage[T1]{fontenc}
 
 \usepackage{listings}
+\usepackage{multirow}
+\usepackage{adjustbox}
 
 \pagestyle{headings}
 \renewcommand{\partpagestyle}{empty}
