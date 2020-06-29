@@ -1,5 +1,3 @@
 history
 .history
-src/history
-src/.history
-src/__pycache__
+__pycache__
