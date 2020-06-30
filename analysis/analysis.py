@@ -2,6 +2,7 @@ import pandas as pd
 import yfinance as yf
 from statsmodels.tsa.stattools import coint
 from scipy.stats import skew, kurtosis
+import matplotlib.pyplot as plt
 
 def cointegrate(ticker1, ticker2):
     start_date = "2016-07-01"
@@ -20,37 +21,38 @@ def cointegrate(ticker1, ticker2):
 
     return p_value
 
-p_values_control, p_values_directors, p_values_employees = [], [], []
+def p_value_aggregate(input_set):
+    p_values_out = []
+
+    for pair in input_set:
+        ticker1, ticker2 = pair.split("/")
+        ticker1 = ticker1.strip()
+        ticker2 = ticker2.strip()
+
+        p_values_out.append(cointegrate(ticker1, ticker2))
+    
+    return p_values_out
 
 with open("random.txt", "r") as random:
     random_set = random.read().split(",")
-        
-    for pair in random_set:
-        ticker1, ticker2 = pair.split("/")
-        ticker1 = ticker1.strip()
-        ticker2 = ticker2.strip()
-
-        p_values_control.append(cointegrate(ticker1, ticker2))
+    p_values_control = p_value_aggregate(random_set)
 
 with open("directors.txt", "r") as directors:
     directors_set = directors.read().split(",")
-        
-    for pair in directors_set:
-        ticker1, ticker2 = pair.split("/")
-        ticker1 = ticker1.strip()
-        ticker2 = ticker2.strip()
-
-        p_values_directors.append(cointegrate(ticker1, ticker2))
+    p_values_directors = p_value_aggregate(directors_set)
 
 with open("employees.txt", "r") as employees:
     employees_set = employees.read().split(",")
-        
-    for pair in employees_set:
-        ticker1, ticker2 = pair.split("/")
-        ticker1 = ticker1.strip()
-        ticker2 = ticker2.strip()
+    p_values_employees = p_value_aggregate(employees_set)
 
-        p_values_employees.append(cointegrate(ticker1, ticker2))
+for p_values, name in [(p_values_control, "control"), (p_values_directors, "directors"), (p_values_employees, "employees")]:
+    plt.xlim(xmin = 0, xmax = 1)
+    plt.ylim(ymin = 0, ymax = 35)
+    plt.hist(p_values)
+    plt.title("Distribution of p-values in {} set".format(name))
+    plt.ylabel("Frequency")
+    plt.xlabel("p-value")
+    plt.savefig("{}_histogram.png".format(name), bbox_inches="tight")
 
 print("Skew of control: {}".format(skew(p_values_control)))
 print("Kurtosis of control: {}".format(kurtosis(p_values_control)))
