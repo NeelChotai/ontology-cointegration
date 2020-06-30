@@ -18,6 +18,9 @@ class coint_return(Enum):
     NO_RELATIONSHIP = 1
     INVALID = 2
 
+class employee_type(Enum):
+    EMPLOYEE = 0
+    DIRECTOR = 1
 
 cache_file = "/tmp/graph.cache"
 
@@ -33,7 +36,7 @@ def populate(cache_file):
     else:
         graph = rdflib.Graph()
 
-        for x in range(29):
+        for x in range(83):
             graph.parse("data/ownership-{}.nt".format(str(x)), format="nt")
 
         outfile = open(cache_file, "wb")
@@ -93,40 +96,36 @@ def cointegrate(ticker1, ticker2):
     return coint_return.NO_RELATIONSHIP
 
 
-def directorship_query(graph):
-    query = graph.query(
-        '''
-        SELECT ?person ?p ?t1 ?t2
-        WHERE { {
-            ?person <http://york.ac.uk/worksat> ?company .
-            ?person <http://york.ac.uk/isdirector>  true .
-            ?person <http://york.ac.uk/worksat> ?othercompany .
-            ?person <http://xmlns.com/foaf/0.1/name> ?p .
-            ?company <http://york.ac.uk/tradingsymbol> ?t1 .
-            ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
-            FILTER(?t1 != ?t2)
-            } }
-        ''')  # returns pairs of companies and person
+def query(graph, type):
+    if type == employee_type.DIRECTOR:
+        query = graph.query(
+            '''
+            SELECT ?person ?p ?t1 ?t2
+            WHERE { {
+                ?person <http://york.ac.uk/worksat> ?company .
+                ?person <http://york.ac.uk/isdirector>  true .
+                ?person <http://york.ac.uk/worksat> ?othercompany .
+                ?person <http://xmlns.com/foaf/0.1/name> ?p .
+                ?company <http://york.ac.uk/tradingsymbol> ?t1 .
+                ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
+                FILTER(?t1 != ?t2)
+                } }
+            ''')  # returns pairs of companies and person
+    elif type == employee_type.EMPLOYEE:
+        query = graph.query(
+            '''
+            SELECT ?person ?p ?t1 ?t2
+            WHERE { {
+                ?person <http://york.ac.uk/worksat> ?company .
+                ?person <http://york.ac.uk/worksat> ?othercompany .
+                ?person <http://xmlns.com/foaf/0.1/name> ?p .
+                ?company <http://york.ac.uk/tradingsymbol> ?t1 .
+                ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
+                FILTER(?t1 != ?t2)
+                } }
+            ''')  # returns pairs of companies and person
 
     return query
-
-
-def employee_query(graph):
-    query = graph.query(
-        '''
-        SELECT ?person ?p ?t1 ?t2
-        WHERE { {
-            ?person <http://york.ac.uk/worksat> ?company .
-            ?person <http://york.ac.uk/worksat> ?othercompany .
-            ?person <http://xmlns.com/foaf/0.1/name> ?p .
-            ?company <http://york.ac.uk/tradingsymbol> ?t1 .
-            ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
-            FILTER(?t1 != ?t2)
-            } }
-        ''')  # returns pairs of companies and person
-
-    return query
-
 
 def pair_people(query):
     pair_people_out = {}
@@ -136,35 +135,17 @@ def pair_people(query):
         sec_report, person, ticker1, ticker2 = str(sec_report), str(
             person), str(ticker1).upper(), str(ticker2).upper()
 
-        ticker1 = ticker1.replace(".", "-")  # for yf.download formatting
-        ticker1 = ticker1.replace("[", "")  # I can't regex
-        ticker1 = ticker1.replace("]", "")
-        ticker1 = ticker1.replace('"', "")
-        ticker1 = ticker1.replace("NASDAQ", "")
-        ticker1 = ticker1.replace("NYSE: ", "")
-        ticker1 = ticker1.replace("NYSE/", "")
-        ticker1 = ticker1.replace("*", "")
-        ticker1 = ticker1.replace("CRDA CRDB", "CRDA")
-        ticker1 = ticker1.replace("CRDA-CRDB", "CRDB")
-        ticker1 = ticker1.replace('FCE-A/FCEB', "FCEA")
-        ticker1 = ticker1.replace('FCEA/FCEB', "FCEB")
-        ticker1 = ticker1.replace('BFA, BFB', "BFB")
-        ticker1 = ticker1.replace(":", "")
+        replace_with_blank = ["[", "]", '"', "NASDAQ", "NYSE: ", "NYSE/", "*", ":"]
 
-        ticker2 = ticker2.replace(".", "-")
-        ticker2 = ticker2.replace("[", "")
-        ticker2 = ticker2.replace("]", "")
-        ticker2 = ticker2.replace('"', "")
-        ticker2 = ticker2.replace("NASDAQ", "")
-        ticker2 = ticker2.replace("NYSE: ", "")
-        ticker2 = ticker2.replace("NYSE/", "")
-        ticker2 = ticker2.replace("*", "")
-        ticker2 = ticker2.replace("CRDA CRDB", "CRDA")
-        ticker2 = ticker2.replace("CRDA-CRDB", "CRDB")
-        ticker2 = ticker2.replace('FCE-A/FCEB', "FCEA")
-        ticker2 = ticker2.replace('FCEA/FCEB', "FCEB")
-        ticker2 = ticker2.replace('BFA, BFB', "BFB")
-        ticker2 = ticker2.replace(":", "")
+        for ticker in [ticker1, ticker2]:
+            ticker = ticker.replace(".", "-")  # for yf.download formatting
+            ticker = ticker.replace("CRDA CRDB", "CRDA")
+            ticker = ticker.replace("CRDA-CRDB", "CRDB")
+            ticker = ticker.replace('FCE-A/FCEB', "FCEA")
+            ticker = ticker.replace('FCEA/FCEB', "FCEB")
+            ticker = ticker.replace('BFA, BFB', "BFB")
+            for symbol in replace_with_blank:
+                ticker = ticker.replace(symbol, "")
 
         pair = (ticker1, ticker2)
 
@@ -198,7 +179,6 @@ def pair_people(query):
     sorted_pairs = {k: v for k, v in sorted(
         pair_people_out.items(), key=lambda item: item[1], reverse=True)}
     return sorted_pairs
-
 
 def random_count():
     count = 0
@@ -241,7 +221,7 @@ def random_count():
             random_coint.append(pair)
         random_total.append(pair)
 
-    with open("random.txt", "a") as random_output:
+    with open("pairs/random.txt", "a") as random_output:
         random_output.write("Pairs:\n")
         for pair in random_total:
             random_output.write("{}/{}, ".format(pair[0], pair[1]))
@@ -296,7 +276,7 @@ def pair_count(companies):
 
     pair_counts = dict(pd.Series(pair_counts).value_counts())
 
-    with open("employees.txt", "a") as pair_output:
+    with open("pairs/employees.txt", "a") as pair_output:
         pair_output.write("Pairs:\n")
         for pair in pair_total:
             pair_output.write("{}/{}, ".format(pair[0], pair[1]))
@@ -335,7 +315,7 @@ def generate_random_set(size):
 
 def generate_test_set(input_dict, size):
     count = 0
-    pairs = list(input_dict)  # we only care about keys
+    pairs = list(input_dict)
     pair_set = []
 
     while True:
@@ -363,23 +343,23 @@ def sampling(companies):
 
     return total_cointegrated
 
+def get_minimum_pairs(graph, num, samples, pairs):
+    director_pairs = pair_people(query(graph, employee_type.DIRECTOR)) # sorted dictionaries of pair: attributes
+    employee_pairs = pair_people(query(graph, employee_type.EMPLOYEE))
+
+    director_pairs = [x for x in list(director_pairs) if director_pairs[x] >= num]
+    employee_pairs = [x for x in list(employee_pairs) if employee_pairs[x] >= num]
+
+    director_sampling, employee_sampling = [], []
+    
+    for x in range(samples):  # 10 samples of 30 pairs
+        director_set = generate_test_set(director_pairs, pairs)
+        employee_set = generate_test_set(employee_pairs, pairs)
+        
+        director_sampling.append(sampling(director_set))
+        employee_sampling.append(sampling(employee_set))
 
 graph = populate(cache_file)
-
-director_pairs = pair_people(directorship_query(graph)) # sorted dictionaries of pair: attributes
-employee_pairs = pair_people(employee_query(graph))
-
-director_pairs_high = [x for x in list(director_pairs) if director_pairs[x] >= 1]
-employee_pairs_high = [x for x in list(employee_pairs) if employee_pairs[x] >= 1]
-
-director_sampling, employee_sampling = [], []
-
-for x in range(10):  # 10 samples of 30 pairs
-    director_set = generate_test_set(director_pairs_high, 30)
-    employee_set = generate_test_set(employee_pairs_high, 30)
-
-    director_sampling.append(sampling(director_set))
-    employee_sampling.append(sampling(employee_set))
 
 print("Director set average: {}".format(np.mean(director_sampling)))
 print("Director set: {}".format(director_sampling))
