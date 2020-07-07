@@ -12,22 +12,37 @@ import statsmodels.api as sm
 import rdflib
 import pickle
 
+###
+# the dates between which cointegration is tested
+COINTEGRATION_START_DATE = "2016-07-01"
+COINTEGRATION_END_DATE = "2017-06-30"
+###
+
+###
+# the dates between which the tickers are tested for delisting and the number of trading days in this time period
+BACKTESTING_START_DATE = "2017-07-01"
+BACKTESTING_END_DATE = "2018-06-30"
+TRADING_DAYS = 251
+###
+
 
 class coint_return(Enum):
     RELATIONSHIP = 0
     NO_RELATIONSHIP = 1
     INVALID = 2
 
+
 class employee_type(Enum):
     EMPLOYEE = 0
     DIRECTOR = 1
+
 
 cache_file = "/tmp/graph.cache"
 
 
 def populate(cache_file):
-    # for ease of programming
     # the graph data structure is enormous, pickling prevents regenerating the same structure every run
+    # return type: rdflib ontology popullated from nt files
 
     if path.isfile(cache_file):
         infile = open(cache_file, "rb")
@@ -48,11 +63,7 @@ def populate(cache_file):
 
 def cointegrate(ticker1, ticker2):
     # cointegrates two time series given by tickers
-
-    start_date = "2016-07-01"
-    end_date = "2017-06-30"
-    start_date_backtest = "2017-07-01"
-    end_date_backtest = "2018-06-30"
+    # return type: coint_return signifying relationship
 
     try:  # handle ticker not found errors
         series1 = yf.download(ticker1, period="10y").filter(
@@ -62,22 +73,23 @@ def cointegrate(ticker1, ticker2):
     except:
         return coint_return.INVALID
 
-    series1_backtest = (series1["Date"] >= start_date_backtest) & (
-        series1["Date"] < end_date_backtest)
-    series2_backtest = (series2["Date"] >= start_date_backtest) & (
-        series2["Date"] < end_date_backtest)
+    series1_backtest = (series1["Date"] >= BACKTESTING_START_DATE) & (
+        series1["Date"] < BACKTESTING_END_DATE)
+    series2_backtest = (series2["Date"] >= BACKTESTING_START_DATE) & (
+        series2["Date"] < BACKTESTING_END_DATE)
 
     # ensures pairs we select can be backtested
-    if len(series1.loc[series1_backtest]) < 251 or len(series2.loc[series2_backtest]) < 251:
+    if len(series1.loc[series1_backtest]) < TRADING_DAYS or len(series2.loc[series2_backtest]) < TRADING_DAYS:
         return coint_return.INVALID
 
     merged = pd.merge(series1, series2, how="outer", on=["Date"])
     merged.dropna(inplace=True)
     merged.reset_index(inplace=True, drop=False)
-    mask = (merged["Date"] >= start_date) & (merged["Date"] < end_date)
+    mask = (merged["Date"] >= COINTEGRATION_START_DATE) & (
+        merged["Date"] < COINTEGRATION_END_DATE)
     merged = merged.loc[mask]
 
-    if len(merged) < 251:
+    if len(merged) < TRADING_DAYS:
         return coint_return.INVALID
 
     johansen_frame = pd.DataFrame(
@@ -89,7 +101,6 @@ def cointegrate(ticker1, ticker2):
     except:
         return coint_return.INVALID
 
-    # return p_value
     # calculates cointegration using p-value and trace statistic (95% confidence)
     if p_value < 0.05 and johansen.cvt[0][1] < johansen.lr1[0]:
         return coint_return.RELATIONSHIP
@@ -97,6 +108,8 @@ def cointegrate(ticker1, ticker2):
 
 
 def query(graph, type):
+    # return type: list of tuples (SEC report URL, name, ticker1, ticker2)
+
     if type == employee_type.DIRECTOR:
         query = graph.query(
             '''
@@ -127,26 +140,30 @@ def query(graph, type):
 
     return query
 
+
+def clean(ticker):
+    replace_with_blank = ["NASDAQ", "NYSE", "*", ":", "/", " ", "[", "]", '"']
+    ticker = ticker.replace(".", "-")
+    ticker = ticker.replace("CRDA CRDB", "CRDA")
+    ticker = ticker.replace("CRDA-CRDB", "CRDB")
+    ticker = ticker.replace('FCE-A/FCEB', "FCEA")
+    ticker = ticker.replace('FCEA/FCEB', "FCEB")
+    ticker = ticker.replace('BFA, BFB', "BFB")
+    for symbol in replace_with_blank:
+        ticker = ticker.replace(symbol, "")
+
+    return ticker
+
+
 def pair_people(query):
+    # returns a dictionary of pairs and attributes
+
     pair_people_out = {}
 
     for row in query:
         sec_report, person, ticker1, ticker2 = row
         sec_report, person, ticker1, ticker2 = str(sec_report), str(
-            person), str(ticker1).upper(), str(ticker2).upper()
-
-        replace_with_blank = ["[", "]", '"', "NASDAQ", "NYSE: ", "NYSE/", "*", ":"]
-
-        for ticker in [ticker1, ticker2]:
-            ticker = ticker.replace(".", "-")  # for yf.download formatting
-            ticker = ticker.replace("CRDA CRDB", "CRDA")
-            ticker = ticker.replace("CRDA-CRDB", "CRDB")
-            ticker = ticker.replace('FCE-A/FCEB', "FCEA")
-            ticker = ticker.replace('FCEA/FCEB', "FCEB")
-            ticker = ticker.replace('BFA, BFB', "BFB")
-            for symbol in replace_with_blank:
-                ticker = ticker.replace(symbol, "")
-
+            person), clean(str(ticker1).upper()), clean(str(ticker2).upper())
         pair = (ticker1, ticker2)
 
         if pair in pair_people_out:
@@ -156,6 +173,7 @@ def pair_people(query):
 
     remove_keys = []
     manual = ["NONE", "N/A", "CRDA  CRDB"]
+
     for key in pair_people_out:
         key_reversed = (key[1], key[0])
 
@@ -175,12 +193,31 @@ def pair_people(query):
         people = list(set(pair_people_out[key]))  # remove duplicate people
         pair_people_out[key] = len(people)  # amount of attributes
 
-    # sorts dictionary descending by number of attributes
     sorted_pairs = {k: v for k, v in sorted(
-        pair_people_out.items(), key=lambda item: item[1], reverse=True)}
+        pair_people_out.items(), key=lambda item: item[1], reverse=True)}  # sorts dictionary descending by number of attributes
+
     return sorted_pairs
 
+
+def dump_pairs(query, type):
+    # populates pairs directory with list of pairs/attribute
+    
+    sorted_pairs = pair_people(query)
+
+    if type == employee_type.DIRECTOR:
+        directory = "pairs/directors.txt"
+    elif type == employee_type.EMPLOYEE:
+        directory = "pairs/employees.txt"
+
+    with open(directory, "w") as pairs_file:
+        for key in sorted_pairs:
+            pairs_file.write(
+                "{}/{}: {}\n".format(key[0], key[1], sorted_pairs[key]))
+
+
 def random_count():
+    # creates a list of random pairs for testing
+
     count = 0
     size = 0
     random_set = []
@@ -232,13 +269,19 @@ def random_count():
     return count
 
 
-def pair_count(companies):
+def pair_count(companies, type):
+    # don't use this
     count = 0
     size = 0
     pair_set = []
     pair_coint = []
     pair_total = []
     pair_counts = []
+
+    if type == employee_type.DIRECTOR:
+        directory = "pairs/directors_cointegrated.txt"
+    elif type == employee_type.EMPLOYEE:
+        directory = "pairs/employees_cointegrated.txt"
 
     for pair in companies:
         reversed_pair = (pair[1], pair[0])
@@ -265,7 +308,7 @@ def pair_count(companies):
         if size >= 150:
             break
 
-    for pair in pair_set:  # testing cointegration of control set
+    for pair in pair_set:
         if cointegrate(pair[0], pair[1]) == coint_return.RELATIONSHIP:
             count += 1
             pair_coint.append(pair)
@@ -276,53 +319,47 @@ def pair_count(companies):
 
     pair_counts = dict(pd.Series(pair_counts).value_counts())
 
-    with open("pairs/employees.txt", "a") as pair_output:
-        pair_output.write("Pairs:\n")
-        for pair in pair_total:
-            pair_output.write("{}/{}, ".format(pair[0], pair[1]))
-        pair_output.write("\nPairs with a cointegrating relationship:\n")
-        for pair in pair_coint:
-            pair_output.write("{}/{}, ".format(pair[0], pair[1]))
-        pair_output.write(
-            "\nDistribution of attributes (number of attributes: frequency):\n")
-        for key in pair_counts:
-            pair_output.write("{}/{}, ".format(key, pair_counts[key]))
     return count
 
 
-def generate_random_set(size):
+def cointegrated_count(query, type):
+    pair_coint = []
+    sorted_pairs = pair_people(query)
+
+    if type == employee_type.DIRECTOR:
+        directory = "pairs/directors_cointegrated.txt"
+    elif type == employee_type.EMPLOYEE:
+        directory = "pairs/employees_cointegrated.txt"
+
+    for pair in sorted_pairs:
+        if pair[0] != pair[1] and cointegrate(pair[0], pair[1]) == coint_return.RELATIONSHIP:
+            pair_coint.append(pair)
+
+    for pair in pair_coint:
+        with open(directory, "w") as pairs_file:
+            for pair in pair_coint:
+                pairs_file.write("{}/{}: {}\n".format(pair[0], pair[1], sorted_pairs[pair]))
+
+
+def generate_set(size=30, companies=None):
+    # generates set of pairs of random companies if no input dictionary specificied
+    # otherwise, generates a set of pairs of companies from dictionary
+
     count = 0
-    random_set = []
-
-    with open("stocks.txt") as stocks:
-        tickers = stocks.read().split(",")
-
-    while True:
-        pair = (choice(tickers), choice(tickers))
-
-        if pair[0] == pair[1] or pair in random_set or cointegrate(pair[0], pair[1]) == coint_return.INVALID:
-            count -= 1
-        else:
-            random_set.append(pair)
-
-        count += 1
-
-        if count >= size:
-            break
-
-    return random_set
-
-
-def generate_test_set(input_dict, size):
-    count = 0
-    pairs = list(input_dict)
     pair_set = []
 
+    if companies == None:
+        with open("stocks.txt") as stocks:
+            tickers = stocks.read().split(",")
+    else:
+        pairs = list(companies)
+
     while True:
-        pair = choice(pairs)
+        pair = (choice(tickers), choice(tickers)
+                ) if companies == None else choice(pairs)
 
         if pair[0] == pair[1] or pair in pair_set or cointegrate(pair[0], pair[1]) == coint_return.INVALID:
-            size -= 1
+            count -= 1
         else:
             pair_set.append(pair)
 
@@ -335,6 +372,8 @@ def generate_test_set(input_dict, size):
 
 
 def sampling(companies):
+    # returns how many pairs are cointegrated given a list of company pairs
+
     total_cointegrated = 0
 
     for pair in companies:
@@ -343,25 +382,35 @@ def sampling(companies):
 
     return total_cointegrated
 
+
 def get_minimum_pairs(graph, num, samples, pairs):
-    director_pairs = pair_people(query(graph, employee_type.DIRECTOR)) # sorted dictionaries of pair: attributes
+    # sorted dictionaries of pair: attributes
+
+    director_pairs = pair_people(query(graph, employee_type.DIRECTOR))
     employee_pairs = pair_people(query(graph, employee_type.EMPLOYEE))
 
-    director_pairs = [x for x in list(director_pairs) if director_pairs[x] >= num]
-    employee_pairs = [x for x in list(employee_pairs) if employee_pairs[x] >= num]
+    director_pairs = [x for x in list(
+        director_pairs) if director_pairs[x] >= num]
+    employee_pairs = [x for x in list(
+        employee_pairs) if employee_pairs[x] >= num]
 
     director_sampling, employee_sampling = [], []
-    
+
     for x in range(samples):  # 10 samples of 30 pairs
-        director_set = generate_test_set(director_pairs, pairs)
-        employee_set = generate_test_set(employee_pairs, pairs)
-        
+        director_set = generate_set(30, companies=director_pairs)
+        employee_set = generate_set(30, companies=employee_pairs)
+
         director_sampling.append(sampling(director_set))
         employee_sampling.append(sampling(employee_set))
 
+
 graph = populate(cache_file)
 
-print("Director set average: {}".format(np.mean(director_sampling)))
-print("Director set: {}".format(director_sampling))
-print("Employee set average: {}".format(np.mean(employee_sampling)))
-print("Employee set: {}".format(employee_sampling))
+director_query = query(graph, employee_type.DIRECTOR)
+employee_query = query(graph, employee_type.EMPLOYEE)
+
+dump_pairs(director_query, employee_type.DIRECTOR)
+dump_pairs(employee_query, employee_type.EMPLOYEE)
+
+cointegrated_count(director_query, employee_type.DIRECTOR)
+cointegrated_count(employee_query, employee_type.EMPLOYEE)
