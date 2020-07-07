@@ -201,7 +201,7 @@ def pair_people(query):
 
 def dump_pairs(query, type):
     # populates pairs directory with list of pairs/attribute
-    
+
     sorted_pairs = pair_people(query)
 
     if type == employee_type.DIRECTOR:
@@ -338,7 +338,8 @@ def cointegrated_count(query, type):
     for pair in pair_coint:
         with open(directory, "w") as pairs_file:
             for pair in pair_coint:
-                pairs_file.write("{}/{}: {}\n".format(pair[0], pair[1], sorted_pairs[pair]))
+                pairs_file.write(
+                    "{}/{}: {}\n".format(pair[0], pair[1], sorted_pairs[pair]))
 
 
 def generate_set(size=30, companies=None):
@@ -405,6 +406,9 @@ def get_minimum_pairs(graph, num, samples, pairs):
 
 
 graph = populate(cache_file)
+
+director_pairs = pair_people(query(graph, employee_type.DIRECTOR))
+employee_pairs = pair_people(query(graph, employee_type.EMPLOYEE))
 
 director_query = query(graph, employee_type.DIRECTOR)
 employee_query = query(graph, employee_type.EMPLOYEE)
