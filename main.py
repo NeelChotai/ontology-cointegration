@@ -22,29 +22,32 @@ class employee_type(Enum):
     EMPLOYEE = 0
     DIRECTOR = 1
 
-cache_file = "/tmp/graph.cache"
+GRAPH_CACHE = "/tmp/graph.cache"
+PERMUTATIONS_CACHE = "/tmp/permutations.cache"
 
-
-def populate(cache_file):
+def cache(cache_file, input_structure=None):
     # for ease of programming
     # the graph data structure is enormous, pickling prevents regenerating the same structure every run
 
     if path.isfile(cache_file):
+        print("Pop mode: file exists, using cached.")
         infile = open(cache_file, "rb")
-        graph = pickle.load(infile)
+        cached = pickle.load(infile)
         infile.close()
+        return cached
     else:
-        graph = rdflib.Graph()
-
-        for x in range(83):
-            graph.parse("data/ownership-{}.nt".format(str(x)), format="nt")
-
+        print("Push mode: file not found, caching.")
         outfile = open(cache_file, "wb")
-        pickle.dump(graph, outfile)
+        pickle.dump(input_structure, outfile)
         outfile.close()
 
+def populate():
+    graph = rdflib.Graph()
+    
+    for x in range(83):
+        graph.parse("data/ownership-{}.nt".format(str(x)), format="nt")
+    
     return graph
-
 
 def cointegrate(ticker1, ticker2):
     # cointegrates two time series given by tickers
@@ -359,9 +362,14 @@ def get_minimum_pairs(graph, num, samples, pairs):
         director_sampling.append(sampling(director_set))
         employee_sampling.append(sampling(employee_set))
 
-graph = populate(cache_file)
-
-print("Director set average: {}".format(np.mean(director_sampling)))
-print("Director set: {}".format(director_sampling))
-print("Employee set average: {}".format(np.mean(employee_sampling)))
-print("Employee set: {}".format(employee_sampling))
+graph = cache(GRAPH_CACHE, input_structure=populate())
+query = cache(PERMUTATIONS_CACHE, input_structure=graph.query(
+    '''
+    SELECT ?t1 ?t2
+    WHERE { {
+        ?company <http://york.ac.uk/tradingsymbol> ?t1 .
+        ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
+        FILTER(?t1 != ?t2)
+        } }
+    '''))
+print(len(query))
