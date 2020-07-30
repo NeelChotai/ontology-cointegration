@@ -69,15 +69,17 @@ def cointegrate(ticker1, ticker2):
     try:  # handle ticker not found errors
         if path.isfile("stocks/{}.csv".format(ticker1)):
             series1 = pd.read_csv("stocks/{}.csv".format(ticker1))
+            series1["Date"] = series1["Date"].apply(pd.to_datetime)
         else:
-            series1 = yf.download(ticker1, period="10y").filter(
+            series1 = yf.download(ticker1, period="5y").filter(
                 ["Date", "Open"]).reset_index(drop=False)
             series1.to_csv("stocks/{}.csv".format(ticker1), index=False)
 
         if path.exists("stocks/{}.csv".format(ticker2)):
             series2 = pd.read_csv("stocks/{}.csv".format(ticker1))
+            series2["Date"] = series2["Date"].apply(pd.to_datetime)
         else:
-            series2 = yf.download(ticker2, period="10y").filter(
+            series2 = yf.download(ticker2, period="5y").filter(
                 ["Date", "Open"]).reset_index(drop=False)
             series2.to_csv("stocks/{}.csv".format(ticker2), index=False)
     except:
@@ -432,7 +434,7 @@ companies = query(graph, query_type.DISTINCT)
 companies_list = []
 
 for row in companies:
-    companies_list.append(row[0])
+    companies_list.append(clean(row[0]))
 
 pair_combinations = combinations(companies_list, 2)
 cointegrated_table = pd.DataFrame(columns=["pair", "cointegrated"]).set_index("pair")
@@ -440,9 +442,9 @@ cointegrated_table = pd.DataFrame(columns=["pair", "cointegrated"]).set_index("p
 for pair in pair_combinations:
     status = cointegrate(pair[0], pair[1])
     if status == coint_return.RELATIONSHIP:
-        cointegrated_table = cointegrated_table.append({"pair": pair, "cointegrated": True})
+        cointegrated_table = cointegrated_table.append({"pair": pair, "cointegrated": True}, ignore_index=True)
     elif status == coint_return.NO_RELATIONSHIP:
-        cointegrated_table = cointegrated_table.append({"pair": pair, "cointegrated": False})
+        cointegrated_table = cointegrated_table.append({"pair": pair, "cointegrated": False}, ignore_index=True)
 
 cointegrated_table.to_csv("pairs/cointegrated_table.csv", index=False)
 
