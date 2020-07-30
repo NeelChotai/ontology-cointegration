@@ -11,18 +11,19 @@ import yfinance as yf
 import statsmodels.api as sm
 import rdflib
 import pickle
+from itertools import combinations
 
 ###
 # the dates between which cointegration is tested
 COINTEGRATION_START_DATE = "2016-07-01"
-COINTEGRATION_END_DATE = "2017-06-30"
+COINTEGRATION_END_DATE = "2018-04-01"
 ###
 
 ###
 # the dates between which the tickers are tested for delisting and the number of trading days in this time period
-BACKTESTING_START_DATE = "2017-07-01"
-BACKTESTING_END_DATE = "2018-06-30"
-TRADING_DAYS = 251
+BACKTESTING_START_DATE = COINTEGRATION_START_DATE
+BACKTESTING_END_DATE = COINTEGRATION_END_DATE
+TRADING_DAYS = 439
 ###
 
 
@@ -34,14 +35,13 @@ class coint_return(Enum):
 class query_type(Enum):
     EMPLOYEE = 0
     DIRECTOR = 1
-    PERMUTATIONS = 2
+    DISTINCT = 2
 
 class employee_type(Enum):
     EMPLOYEE = 0
     DIRECTOR = 1
 
 GRAPH_CACHE = "/tmp/graph.cache"
-PERMUTATIONS_CACHE = "/tmp/permutations.cache"
 
 def push_cache(cache_path, input_structure):
     outfile = open(cache_path, "wb")
@@ -67,10 +67,19 @@ def cointegrate(ticker1, ticker2):
     # return type: coint_return signifying relationship
 
     try:  # handle ticker not found errors
-        series1 = yf.download(ticker1, period="10y").filter(
-            ["Date", "Open"]).reset_index(drop=False)
-        series2 = yf.download(ticker2, period="10y").filter(
-            ["Date", "Open"]).reset_index(drop=False)
+        if path.isfile("stocks/{}.csv".format(ticker1)):
+            series1 = pd.read_csv("stocks/{}.csv".format(ticker1))
+        else:
+            series1 = yf.download(ticker1, period="10y").filter(
+                ["Date", "Open"]).reset_index(drop=False)
+            series1.to_csv("stocks/{}.csv".format(ticker1), index=False)
+
+        if path.exists("stocks/{}.csv".format(ticker2)):
+            series2 = pd.read_csv("stocks/{}.csv".format(ticker1))
+        else:
+            series2 = yf.download(ticker2, period="10y").filter(
+                ["Date", "Open"]).reset_index(drop=False)
+            series2.to_csv("stocks/{}.csv".format(ticker2), index=False)
     except:
         return coint_return.INVALID
 
@@ -138,14 +147,12 @@ def query(graph, type):
                 FILTER(?t1 != ?t2)
                 } }
             ''')  # returns pairs of companies and person
-    elif type == query_type.PERMUTATIONS:
+    elif type == query_type.DISTINCT:
         query = graph.query(
             '''
-            SELECT ?t1 ?t2
+            SELECT distinct ?t1
             WHERE { {
                 ?company <http://york.ac.uk/tradingsymbol> ?t1 .
-                ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
-                FILTER(?t1 != ?t2)
                 } }
             ''') # returns all permutations of pairs in ontology
 
@@ -421,8 +428,22 @@ else:
     graph = populate()
     push_cache(GRAPH_CACHE, graph)
 
-if path.isfile(PERMUTATIONS_CACHE):
-    permutations = pop_cache(PERMUTATIONS_CACHE)
-else:
-    permutations = list(query(graph, query_type.PERMUTATIONS))
-    push_cache(PERMUTATIONS_CACHE, permutations)
+companies = query(graph, query_type.DISTINCT)
+companies_list = []
+
+for row in companies:
+    companies_list.append(row[0])
+
+pair_combinations = combinations(companies_list, 2)
+cointegrated_table = pd.DataFrame(columns=["pair", "cointegrated"]).set_index("pair")
+
+for pair in pair_combinations:
+    status = cointegrate(pair[0], pair[1])
+    if status == coint_return.RELATIONSHIP:
+        cointegrated_table = cointegrated_table.append({"pair": pair, "cointegrated": True})
+    elif status == coint_return.NO_RELATIONSHIP:
+        cointegrated_table = cointegrated_table.append({"pair": pair, "cointegrated": False})
+
+cointegrated_table.to_csv("pairs/cointegrated_table.csv", index=False)
+
+# next step is to go through cointegrated companies table and indicate the number of shared employees per pair
