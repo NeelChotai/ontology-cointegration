@@ -11,7 +11,6 @@ import yfinance as yf
 import statsmodels.api as sm
 import rdflib
 import pickle
-from itertools import combinations
 
 ###
 # the dates between which cointegration is tested
@@ -32,21 +31,20 @@ class coint_return(Enum):
     NO_RELATIONSHIP = 1
     INVALID = 2
 
-class query_type(Enum):
-    EMPLOYEE = 0
-    DIRECTOR = 1
-    DISTINCT = 2
 
 class employee_type(Enum):
     EMPLOYEE = 0
     DIRECTOR = 1
 
+
 GRAPH_CACHE = "/tmp/graph.cache"
+
 
 def push_cache(cache_path, input_structure):
     outfile = open(cache_path, "wb")
     pickle.dump(input_structure, outfile)
     outfile.close()
+
 
 def pop_cache(cache_path):
     infile = open(cache_path, "rb")
@@ -54,13 +52,15 @@ def pop_cache(cache_path):
     infile.close()
     return cached
 
+
 def populate():
     graph = rdflib.Graph()
-    
+
     for x in range(83):
         graph.parse("data/ownership-{}.nt".format(str(x)), format="nt")
-    
+
     return graph
+
 
 def cointegrate(ticker1, ticker2):
     # cointegrates two time series given by tickers
@@ -72,7 +72,7 @@ def cointegrate(ticker1, ticker2):
             series1["Date"] = series1["Date"].apply(pd.to_datetime)
         else:
             series1 = yf.download(ticker1, period="5y").filter(
-                ["Date", "Open"]).reset_index(drop=False)
+                ["Date", "Close"]).reset_index(drop=False)
             series1.to_csv("stocks/{}.csv".format(ticker1), index=False)
 
         if path.exists("stocks/{}.csv".format(ticker2)):
@@ -80,7 +80,7 @@ def cointegrate(ticker1, ticker2):
             series2["Date"] = series2["Date"].apply(pd.to_datetime)
         else:
             series2 = yf.download(ticker2, period="5y").filter(
-                ["Date", "Open"]).reset_index(drop=False)
+                ["Date", "Close"]).reset_index(drop=False)
             series2.to_csv("stocks/{}.csv".format(ticker2), index=False)
     except:
         return coint_return.INVALID
@@ -105,10 +105,10 @@ def cointegrate(ticker1, ticker2):
         return coint_return.INVALID
 
     johansen_frame = pd.DataFrame(
-        {"x": merged["Open_x"], "y": merged["Open_y"]})
+        {"x": merged["Close_x"], "y": merged["Close_y"]})
 
     try:  # weird divide by zero error here on occassion
-        score, p_value, _ = coint(merged["Open_x"], merged["Open_y"])
+        score, p_value, _ = coint(merged["Close_x"], merged["Close_y"])
         johansen = coint_johansen(johansen_frame, 0, 1)
     except:
         return coint_return.INVALID
@@ -122,7 +122,7 @@ def cointegrate(ticker1, ticker2):
 def query(graph, type):
     # return type: list of tuples (SEC report URL, name, ticker1, ticker2)
 
-    if type == query_type.DIRECTOR:
+    if type == employee_type.DIRECTOR:
         query = graph.query(
             '''
             SELECT ?person ?p ?t1 ?t2
@@ -136,7 +136,7 @@ def query(graph, type):
                 FILTER(?t1 != ?t2)
                 } }
             ''')  # returns pairs of companies and person
-    elif type == query_type.EMPLOYEE:
+    elif type == employee_type.EMPLOYEE:
         query = graph.query(
             '''
             SELECT ?person ?p ?t1 ?t2
@@ -149,15 +149,6 @@ def query(graph, type):
                 FILTER(?t1 != ?t2)
                 } }
             ''')  # returns pairs of companies and person
-    elif type == query_type.DISTINCT:
-        query = graph.query(
-            '''
-            SELECT distinct ?t1
-            WHERE { {
-                ?company <http://york.ac.uk/tradingsymbol> ?t1 .
-                } }
-            ''') # returns all permutations of pairs in ontology
-
     return query
 
 
@@ -298,10 +289,10 @@ def pair_count(companies, type):
     pair_total = []
     pair_counts = []
 
-    if type == employee_type.DIRECTOR: # output
+    if type == employee_type.DIRECTOR:  # output
         directory = "pairs/directors_cointegrated.txt"
     elif type == employee_type.EMPLOYEE:
-        directory = "pairs/employees_cointegrated.txt" 
+        directory = "pairs/employees_cointegrated.txt"
 
     for pair in companies:
         reversed_pair = (pair[1], pair[0])
@@ -407,8 +398,8 @@ def sampling(companies):
 def get_minimum_pairs(graph, num, samples, pairs):
     # sorted dictionaries of pair: attributes
 
-    director_pairs = pair_people(query(graph, query_type.DIRECTOR))
-    employee_pairs = pair_people(query(graph, query_type.EMPLOYEE))
+    director_pairs = pair_people(query(graph, employee_type.DIRECTOR))
+    employee_pairs = pair_people(query(graph, employee_type.EMPLOYEE))
 
     director_pairs = [x for x in list(
         director_pairs) if director_pairs[x] >= num]
@@ -424,28 +415,9 @@ def get_minimum_pairs(graph, num, samples, pairs):
         director_sampling.append(sampling(director_set))
         employee_sampling.append(sampling(employee_set))
 
+
 if path.isfile(GRAPH_CACHE):
     graph = pop_cache(GRAPH_CACHE)
 else:
     graph = populate()
     push_cache(GRAPH_CACHE, graph)
-
-companies = query(graph, query_type.DISTINCT)
-companies_list = []
-
-for row in companies:
-    companies_list.append(clean(row[0]))
-
-pair_combinations = combinations(companies_list, 2)
-cointegrated_table = pd.DataFrame(columns=["pair", "cointegrated"]).set_index("pair")
-
-for pair in pair_combinations:
-    status = cointegrate(pair[0], pair[1])
-    if status == coint_return.RELATIONSHIP:
-        cointegrated_table = cointegrated_table.append({"pair": pair, "cointegrated": True}, ignore_index=True)
-    elif status == coint_return.NO_RELATIONSHIP:
-        cointegrated_table = cointegrated_table.append({"pair": pair, "cointegrated": False}, ignore_index=True)
-
-cointegrated_table.to_csv("pairs/cointegrated_table.csv", index=False)
-
-# next step is to go through cointegrated companies table and indicate the number of shared employees per pair
