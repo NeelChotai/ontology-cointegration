@@ -1,8 +1,0 @@
-average number of cointegrated pairs from sampling for random and shared attributes
-    split pairs in to x sections
-    randomly select y pairs of pairs with z shared attributes
-    randomly select y pairs from the total chunk
-    compare cointegration percentage
-over time, the companies that are linked continue to be cointegrated
-    four cases: stay cointegrated, lose cointegration, gain cointegration, stay non-cointegrated
-labelling companies based on sector

@@ -15,14 +15,14 @@ import pickle
 ###
 # the dates between which cointegration is tested
 COINTEGRATION_START_DATE = "2016-07-01"
-COINTEGRATION_END_DATE = "2017-06-30"
+COINTEGRATION_END_DATE = "2018-04-01"
 ###
 
 ###
 # the dates between which the tickers are tested for delisting and the number of trading days in this time period
-BACKTESTING_START_DATE = "2017-07-01"
-BACKTESTING_END_DATE = "2018-06-30"
-TRADING_DAYS = 251
+BACKTESTING_START_DATE = COINTEGRATION_START_DATE
+BACKTESTING_END_DATE = COINTEGRATION_END_DATE
+TRADING_DAYS = 439
 ###
 
 
@@ -31,22 +31,20 @@ class coint_return(Enum):
     NO_RELATIONSHIP = 1
     INVALID = 2
 
-class query_type(Enum):
-    EMPLOYEE = 0
-    DIRECTOR = 1
-    PERMUTATIONS = 2
 
 class employee_type(Enum):
     EMPLOYEE = 0
     DIRECTOR = 1
 
+
 GRAPH_CACHE = "/tmp/graph.cache"
-PERMUTATIONS_CACHE = "/tmp/permutations.cache"
+
 
 def push_cache(cache_path, input_structure):
     outfile = open(cache_path, "wb")
     pickle.dump(input_structure, outfile)
     outfile.close()
+
 
 def pop_cache(cache_path):
     infile = open(cache_path, "rb")
@@ -54,23 +52,36 @@ def pop_cache(cache_path):
     infile.close()
     return cached
 
+
 def populate():
     graph = rdflib.Graph()
-    
+
     for x in range(83):
         graph.parse("data/ownership-{}.nt".format(str(x)), format="nt")
-    
+
     return graph
+
 
 def cointegrate(ticker1, ticker2):
     # cointegrates two time series given by tickers
     # return type: coint_return signifying relationship
 
     try:  # handle ticker not found errors
-        series1 = yf.download(ticker1, period="10y").filter(
-            ["Date", "Open"]).reset_index(drop=False)
-        series2 = yf.download(ticker2, period="10y").filter(
-            ["Date", "Open"]).reset_index(drop=False)
+        if path.isfile("stocks/{}.csv".format(ticker1)):
+            series1 = pd.read_csv("stocks/{}.csv".format(ticker1))
+            series1["Date"] = series1["Date"].apply(pd.to_datetime)
+        else:
+            series1 = yf.download(ticker1, period="5y").filter(
+                ["Date", "Close"]).reset_index(drop=False)
+            series1.to_csv("stocks/{}.csv".format(ticker1), index=False)
+
+        if path.exists("stocks/{}.csv".format(ticker2)):
+            series2 = pd.read_csv("stocks/{}.csv".format(ticker1))
+            series2["Date"] = series2["Date"].apply(pd.to_datetime)
+        else:
+            series2 = yf.download(ticker2, period="5y").filter(
+                ["Date", "Close"]).reset_index(drop=False)
+            series2.to_csv("stocks/{}.csv".format(ticker2), index=False)
     except:
         return coint_return.INVALID
 
@@ -94,10 +105,10 @@ def cointegrate(ticker1, ticker2):
         return coint_return.INVALID
 
     johansen_frame = pd.DataFrame(
-        {"x": merged["Open_x"], "y": merged["Open_y"]})
+        {"x": merged["Close_x"], "y": merged["Close_y"]})
 
     try:  # weird divide by zero error here on occassion
-        score, p_value, _ = coint(merged["Open_x"], merged["Open_y"])
+        score, p_value, _ = coint(merged["Close_x"], merged["Close_y"])
         johansen = coint_johansen(johansen_frame, 0, 1)
     except:
         return coint_return.INVALID
@@ -111,7 +122,7 @@ def cointegrate(ticker1, ticker2):
 def query(graph, type):
     # return type: list of tuples (SEC report URL, name, ticker1, ticker2)
 
-    if type == query_type.DIRECTOR:
+    if type == employee_type.DIRECTOR:
         query = graph.query(
             '''
             SELECT ?person ?p ?t1 ?t2
@@ -125,7 +136,7 @@ def query(graph, type):
                 FILTER(?t1 != ?t2)
                 } }
             ''')  # returns pairs of companies and person
-    elif type == query_type.EMPLOYEE:
+    elif type == employee_type.EMPLOYEE:
         query = graph.query(
             '''
             SELECT ?person ?p ?t1 ?t2
@@ -138,17 +149,6 @@ def query(graph, type):
                 FILTER(?t1 != ?t2)
                 } }
             ''')  # returns pairs of companies and person
-    elif type == query_type.PERMUTATIONS:
-        query = graph.query(
-            '''
-            SELECT ?t1 ?t2
-            WHERE { {
-                ?company <http://york.ac.uk/tradingsymbol> ?t1 .
-                ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
-                FILTER(?t1 != ?t2)
-                } }
-            ''') # returns all permutations of pairs in ontology
-
     return query
 
 
@@ -289,10 +289,10 @@ def pair_count(companies, type):
     pair_total = []
     pair_counts = []
 
-    if type == employee_type.DIRECTOR: # output
+    if type == employee_type.DIRECTOR:  # output
         directory = "pairs/directors_cointegrated.txt"
     elif type == employee_type.EMPLOYEE:
-        directory = "pairs/employees_cointegrated.txt" 
+        directory = "pairs/employees_cointegrated.txt"
 
     for pair in companies:
         reversed_pair = (pair[1], pair[0])
@@ -398,8 +398,8 @@ def sampling(companies):
 def get_minimum_pairs(graph, num, samples, pairs):
     # sorted dictionaries of pair: attributes
 
-    director_pairs = pair_people(query(graph, query_type.DIRECTOR))
-    employee_pairs = pair_people(query(graph, query_type.EMPLOYEE))
+    director_pairs = pair_people(query(graph, employee_type.DIRECTOR))
+    employee_pairs = pair_people(query(graph, employee_type.EMPLOYEE))
 
     director_pairs = [x for x in list(
         director_pairs) if director_pairs[x] >= num]
@@ -415,14 +415,9 @@ def get_minimum_pairs(graph, num, samples, pairs):
         director_sampling.append(sampling(director_set))
         employee_sampling.append(sampling(employee_set))
 
+
 if path.isfile(GRAPH_CACHE):
     graph = pop_cache(GRAPH_CACHE)
 else:
     graph = populate()
     push_cache(GRAPH_CACHE, graph)
-
-if path.isfile(PERMUTATIONS_CACHE):
-    permutations = pop_cache(PERMUTATIONS_CACHE)
-else:
-    permutations = list(query(graph, query_type.PERMUTATIONS))
-    push_cache(PERMUTATIONS_CACHE, permutations)
