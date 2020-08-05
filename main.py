@@ -11,18 +11,13 @@ import yfinance as yf
 import statsmodels.api as sm
 import rdflib
 import pickle
+from itertools import combinations
 
 ###
 # the dates between which cointegration is tested
-COINTEGRATION_START_DATE = "2016-07-01"
-COINTEGRATION_END_DATE = "2018-04-01"
-###
-
-###
-# the dates between which the tickers are tested for delisting and the number of trading days in this time period
-BACKTESTING_START_DATE = COINTEGRATION_START_DATE
-BACKTESTING_END_DATE = COINTEGRATION_END_DATE
-TRADING_DAYS = 439
+COINTEGRATION_START_DATE = "2017-04-01"
+COINTEGRATION_END_DATE = "2017-06-30"
+TRADING_DAYS = 63
 ###
 
 
@@ -35,10 +30,12 @@ class coint_return(Enum):
 class employee_type(Enum):
     EMPLOYEE = 0
     DIRECTOR = 1
+    ALL = 2
 
 
 GRAPH_CACHE = "/tmp/graph.cache"
-
+COMPANIES_CACHE = "/tmp/companies.cache"
+EMPLOYEES_CACHE = "/tmp/employees.cache"
 
 def push_cache(cache_path, input_structure):
     outfile = open(cache_path, "wb")
@@ -71,7 +68,7 @@ def cointegrate(ticker1, ticker2):
             series1 = pd.read_csv("stocks/{}.csv".format(ticker1))
             series1["Date"] = series1["Date"].apply(pd.to_datetime)
         else:
-            series1 = yf.download(ticker1, period="5y").filter(
+            series1 = yf.download(ticker1, start=COINTEGRATION_START_DATE, end=COINTEGRATION_END_DATE).filter(
                 ["Date", "Close"]).reset_index(drop=False)
             series1.to_csv("stocks/{}.csv".format(ticker1), index=False)
 
@@ -79,30 +76,18 @@ def cointegrate(ticker1, ticker2):
             series2 = pd.read_csv("stocks/{}.csv".format(ticker1))
             series2["Date"] = series2["Date"].apply(pd.to_datetime)
         else:
-            series2 = yf.download(ticker2, period="5y").filter(
+            series2 = yf.download(ticker2, start=COINTEGRATION_START_DATE, end=COINTEGRATION_END_DATE).filter(
                 ["Date", "Close"]).reset_index(drop=False)
             series2.to_csv("stocks/{}.csv".format(ticker2), index=False)
     except:
-        return coint_return.INVALID
-
-    series1_backtest = (series1["Date"] >= BACKTESTING_START_DATE) & (
-        series1["Date"] < BACKTESTING_END_DATE)
-    series2_backtest = (series2["Date"] >= BACKTESTING_START_DATE) & (
-        series2["Date"] < BACKTESTING_END_DATE)
-
-    # ensures pairs we select can be backtested
-    if len(series1.loc[series1_backtest]) < TRADING_DAYS or len(series2.loc[series2_backtest]) < TRADING_DAYS:
-        return coint_return.INVALID
+        return (coint_return.INVALID, None)
 
     merged = pd.merge(series1, series2, how="outer", on=["Date"])
     merged.dropna(inplace=True)
     merged.reset_index(inplace=True, drop=False)
-    mask = (merged["Date"] >= COINTEGRATION_START_DATE) & (
-        merged["Date"] < COINTEGRATION_END_DATE)
-    merged = merged.loc[mask]
 
     if len(merged) < TRADING_DAYS:
-        return coint_return.INVALID
+        return (coint_return.INVALID, None)
 
     johansen_frame = pd.DataFrame(
         {"x": merged["Close_x"], "y": merged["Close_y"]})
@@ -111,12 +96,12 @@ def cointegrate(ticker1, ticker2):
         score, p_value, _ = coint(merged["Close_x"], merged["Close_y"])
         johansen = coint_johansen(johansen_frame, 0, 1)
     except:
-        return coint_return.INVALID
+        return (coint_return.INVALID, None)
 
     # calculates cointegration using p-value and trace statistic (95% confidence)
     if p_value < 0.05 and johansen.cvt[0][1] < johansen.lr1[0]:
-        return coint_return.RELATIONSHIP
-    return coint_return.NO_RELATIONSHIP
+        return (coint_return.RELATIONSHIP, p_value)
+    return (coint_return.NO_RELATIONSHIP, p_value)
 
 
 def query(graph, type):
@@ -133,7 +118,8 @@ def query(graph, type):
                 ?person <http://xmlns.com/foaf/0.1/name> ?p .
                 ?company <http://york.ac.uk/tradingsymbol> ?t1 .
                 ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
-                FILTER(?t1 != ?t2)
+                ?quarter <http://york.ac.uk/periodreport> ?q .
+                FILTER(?t1 != ?t2 && regex(str(?quarter), "2017/QTR2"))
                 } }
             ''')  # returns pairs of companies and person
     elif type == employee_type.EMPLOYEE:
@@ -146,9 +132,20 @@ def query(graph, type):
                 ?person <http://xmlns.com/foaf/0.1/name> ?p .
                 ?company <http://york.ac.uk/tradingsymbol> ?t1 .
                 ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
-                FILTER(?t1 != ?t2)
+                ?quarter <http://york.ac.uk/periodreport> ?q .
+                FILTER(?t1 != ?t2 && regex(str(?quarter), "2017/QTR2"))
                 } }
             ''')  # returns pairs of companies and person
+    elif type == employee_type.ALL:
+        query = graph.query(
+            '''
+            SELECT ?t
+            WHERE { {
+                ?company <http://york.ac.uk/tradingsymbol> ?t .
+                ?quarter <http://york.ac.uk/periodreport> ?q .
+                FILTER(regex(str(?quarter), "2017/QTR2"))
+                } }
+            ''')  # all companies in quarter
     return query
 
 
@@ -166,8 +163,8 @@ def clean(ticker):
     return ticker
 
 
-def pair_people(query):
-    # returns a dictionary of pairs and attributes
+def pairs_with_attributes(query):
+    # returns a dictionary of pairs and number attributes
 
     pair_people_out = {}
 
@@ -210,167 +207,35 @@ def pair_people(query):
     return sorted_pairs
 
 
-def dump_pairs(query, type):
-    # populates pairs directory with list of pairs/attribute
-
-    sorted_pairs = pair_people(query)
-
-    if type == employee_type.DIRECTOR:
-        directory = "pairs/directors.txt"
-    elif type == employee_type.EMPLOYEE:
-        directory = "pairs/employees.txt"
-
-    with open(directory, "w") as pairs_file:
-        for key in sorted_pairs:
-            pairs_file.write(
-                "{}/{}: {}\n".format(key[0], key[1], sorted_pairs[key]))
-
-
-def random_count():
-    # creates a list of random pairs for testing
-
-    count = 0
-    size = 0
-    random_set = []
-    random_coint = []
-    random_total = []
-
-    with open("stocks.txt") as stocks:
-        tickers = stocks.read().split(",")
-
-    while True:  # preprocessing of control set
-        pair = (choice(tickers), choice(tickers))
-        reversed_pair = reversed(pair)
-        result_random = cointegrate(pair[0], pair[1])
-
-        if pair[0] == pair[1] or pair in random_set or result_random == coint_return.INVALID:
-            size -= 1
-        elif reversed_pair in random_set:
-            # since this pair is in the set, coint_return will never be invalid
-            result_existing = cointegrate(pair[1], pair[0])
-
-            if result_existing == coint_return.RELATIONSHIP:
-                pass  # if the existing entry has a cointegrating relationship, do nothing
-            elif result_random == coint_return.RELATIONSHIP:
-                random_set.remove(reversed_pair)
-                random_set.append(pair)
-            # only remaining possibility is neither pair has a cointegrating relationship
-        else:
-            random_set.append(pair)
-
-        size += 1
-
-        if size >= 150:
-            break
-
-    for pair in random_set:  # testing cointegration of control set
-        if cointegrate(pair[0], pair[1]) == coint_return.RELATIONSHIP:
-            count += 1
-            random_coint.append(pair)
-        random_total.append(pair)
-
-    with open("pairs/random.txt", "a") as random_output:
-        random_output.write("Pairs:\n")
-        for pair in random_total:
-            random_output.write("{}/{}, ".format(pair[0], pair[1]))
-        random_output.write("\nPairs with a cointegrating relationship:\n")
-        for pair in random_coint:
-            random_output.write("{}/{}, ".format(pair[0], pair[1]))
-
-    return count
-
-
-def pair_count(companies, type):
-    # don't use this
-    count = 0
-    size = 0
+def generate_attribute_set(companies):
     pair_set = []
-    pair_coint = []
-    pair_total = []
-    pair_counts = []
-
-    if type == employee_type.DIRECTOR:  # output
-        directory = "pairs/directors_cointegrated.txt"
-    elif type == employee_type.EMPLOYEE:
-        directory = "pairs/employees_cointegrated.txt"
 
     for pair in companies:
         reversed_pair = (pair[1], pair[0])
-        result_pair = cointegrate(pair[0], pair[1])
+        result, p_value = cointegrate(pair[0], pair[1])
 
-        # yes, this level of micromanagement is necessary
-        if pair[0] == pair[1] or pair in pair_set or result_pair == coint_return.INVALID:
-            size -= 1
-        elif reversed_pair in pair_set:
-            # since this pair is in the set, coint_return will never be invalid
-            result_existing = cointegrate(pair[1], pair[0])
-
-            if result_existing == coint_return.RELATIONSHIP:
-                pass  # if the existing entry has a cointegrating relationship, do nothing
-            elif result_pair == coint_return.RELATIONSHIP:
-                pair_set.remove(reversed_pair)
-                pair_set.append(pair)
-            # only remaining possibility is neither pair has a cointegrating relationship
+        if pair[0] == pair[1] or pair in pair_set or result == coint_return.INVALID or reversed_pair in pair_set:
+            pass
         else:
             pair_set.append(pair)
+    # pair_counts = dict(pd.Series(pair_counts).value_counts()) # number of attributes
 
-        size += 1
-
-        if size >= 150:
-            break
-
-    for pair in pair_set:
-        if cointegrate(pair[0], pair[1]) == coint_return.RELATIONSHIP:
-            count += 1
-            pair_coint.append(pair)
-        pair_total.append(pair)
-
-    for pair in pair_total:
-        pair_counts.append(companies[pair])
-
-    pair_counts = dict(pd.Series(pair_counts).value_counts())
-
-    return count
+    return pair_set
 
 
-def cointegrated_count(query, type):
-    pair_coint = []
-    sorted_pairs = pair_people(query)
-
-    if type == employee_type.DIRECTOR:
-        directory = "pairs/directors_cointegrated.txt"
-    elif type == employee_type.EMPLOYEE:
-        directory = "pairs/employees_cointegrated.txt"
-
-    for pair in sorted_pairs:
-        if pair[0] != pair[1] and cointegrate(pair[0], pair[1]) == coint_return.RELATIONSHIP:
-            pair_coint.append(pair)
-
-    for pair in pair_coint:
-        with open(directory, "w") as pairs_file:
-            for pair in pair_coint:
-                pairs_file.write(
-                    "{}/{}: {}\n".format(pair[0], pair[1], sorted_pairs[pair]))
-
-
-def generate_set(size=30, companies=None):
-    # generates set of pairs of random companies if no input dictionary specificied
-    # otherwise, generates a set of pairs of companies from dictionary
+def generate_random_set(companies, size):
+    # generates set of pairs of random companies of the length of the attribute set
 
     count = 0
     pair_set = []
-
-    if companies == None:
-        with open("stocks.txt") as stocks:
-            tickers = stocks.read().split(",")
-    else:
-        pairs = list(companies)
+    pairs = combinations(companies, 2)
 
     while True:
-        pair = (choice(tickers), choice(tickers)
-                ) if companies == None else choice(pairs)
+        pair = choice(pairs)
+        reversed_pair = (pair[1], pair[0])
+        result, p_value = cointegrate(pair[0], pair[1])
 
-        if pair[0] == pair[1] or pair in pair_set or cointegrate(pair[0], pair[1]) == coint_return.INVALID:
+        if pair[0] == pair[1] or pair in pair_set or result == coint_return.INVALID or reversed_pair in pair_set:
             count -= 1
         else:
             pair_set.append(pair)
@@ -383,37 +248,26 @@ def generate_set(size=30, companies=None):
     return pair_set
 
 
-def sampling(companies):
-    # returns how many pairs are cointegrated given a list of company pairs
+def cointegrated_count(pairs, type):
+    cointegrated = pd.DataFrame(
+        columns=["pair", "cointegrated 2017", "p-value 2017"]).set_index("pair")
 
-    total_cointegrated = 0
+    for pair in pairs:
+        result, p_value = cointegrate(pair[0], pair[1])
+        if result == coint_return.RELATIONSHIP:
+            cointegrated = cointegrated.append(
+                {"pair": pair, "cointegrated 2017": True, "p-value 2017": p_value}, ignore_index=True)
+        elif result == coint_return.NO_RELATIONSHIP:
+            cointegrated = cointegrated.append(
+                {"pair": pair, "cointegrated 2017": False, "p-value 2017": p_value}, ignore_index=True)
+    if type == employee_type.ALL:
+        cointegrated.to_csv(
+            "experiment_1/random_q2.csv", index=False)
+    elif type == employee_type.EMPLOYEE:
+        cointegrated.to_csv(
+            "experiment_1/employees_q2.csv", index=False)
 
-    for pair in companies:
-        if cointegrate(pair[0], pair[1]) == coint_return.RELATIONSHIP:
-            total_cointegrated += 1
-
-    return total_cointegrated
-
-
-def get_minimum_pairs(graph, num, samples, pairs):
-    # sorted dictionaries of pair: attributes
-
-    director_pairs = pair_people(query(graph, employee_type.DIRECTOR))
-    employee_pairs = pair_people(query(graph, employee_type.EMPLOYEE))
-
-    director_pairs = [x for x in list(
-        director_pairs) if director_pairs[x] >= num]
-    employee_pairs = [x for x in list(
-        employee_pairs) if employee_pairs[x] >= num]
-
-    director_sampling, employee_sampling = [], []
-
-    for x in range(samples):  # 10 samples of 30 pairs
-        director_set = generate_set(30, companies=director_pairs)
-        employee_set = generate_set(30, companies=employee_pairs)
-
-        director_sampling.append(sampling(director_set))
-        employee_sampling.append(sampling(employee_set))
+    return len(cointegrated)
 
 
 if path.isfile(GRAPH_CACHE):
@@ -421,3 +275,28 @@ if path.isfile(GRAPH_CACHE):
 else:
     graph = populate()
     push_cache(GRAPH_CACHE, graph)
+
+if path.isfile(COMPANIES_CACHE):
+    comapnies_list = pop_cache(COMPANIES_CACHE)
+else:
+    companies_list = set()
+    for row in query(graph, employee_type.ALL):
+        companies_list.add(row[0])
+    push_cache(COMPANIES_CACHE, list(comapnies_list))
+
+if path.isfile(EMPLOYEES_CACHE):
+    employee_pairs = pop_cache(EMPLOYEES_CACHE)
+else:
+    employee_pairs = pairs_with_attributes(query(graph, employee_type.EMPLOYEE))
+    push_cache(EMPLOYEES_CACHE, employee_pairs)
+
+for interval in [1, 3, 5]:
+    employee_pairs = generate_attribute_set([x for x in list(
+        employee_pairs) if employee_pairs[x] >= interval])
+    random_pairs = generate_random_set(companies_list, len(employee_pairs))
+
+    with open("experiment_1/q2_2017_results.txt", "a") as results:
+        results.write("Random set cointegrated: {}\n".format(
+            cointegrated_count(random_pairs, employee_type.ALL)))
+        results.write("Employee set cointegrated ({} attribute(s): {}\n".format(
+            interval, cointegrated_count(employee_pairs, employee_type.EMPLOYEE)))
