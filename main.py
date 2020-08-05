@@ -33,9 +33,9 @@ class employee_type(Enum):
     ALL = 2
 
 
-GRAPH_CACHE = "/tmp/graph.cache"
-COMPANIES_CACHE = "/tmp/companies.cache"
-EMPLOYEES_CACHE = "/tmp/employees.cache"
+GRAPH_CACHE = "./.cache/graph.cache"
+COMPANIES_CACHE = "./.cache/companies.cache"
+EMPLOYEES_CACHE = "./.cache/employees.cache"
 
 def push_cache(cache_path, input_structure):
     outfile = open(cache_path, "wb")
@@ -139,7 +139,7 @@ def query(graph, type):
     elif type == employee_type.ALL:
         query = graph.query(
             '''
-            SELECT ?t
+            SELECT DISTINCT ?t
             WHERE { {
                 ?company <http://york.ac.uk/tradingsymbol> ?t .
                 ?quarter <http://york.ac.uk/periodreport> ?q .
@@ -269,13 +269,16 @@ def cointegrated_count(pairs, type):
 
     return len(cointegrated)
 
-
+###
 if path.isfile(GRAPH_CACHE):
     graph = pop_cache(GRAPH_CACHE)
 else:
     graph = populate()
     push_cache(GRAPH_CACHE, graph)
+print("Graph loaded.")
+###
 
+###
 if path.isfile(COMPANIES_CACHE):
     comapnies_list = pop_cache(COMPANIES_CACHE)
 else:
@@ -283,13 +286,19 @@ else:
     for row in query(graph, employee_type.ALL):
         companies_list.add(row[0])
     push_cache(COMPANIES_CACHE, list(comapnies_list))
+print("Companies loaded.")
+###
 
+###
 if path.isfile(EMPLOYEES_CACHE):
     employee_pairs = pop_cache(EMPLOYEES_CACHE)
 else:
     employee_pairs = pairs_with_attributes(query(graph, employee_type.EMPLOYEE))
     push_cache(EMPLOYEES_CACHE, employee_pairs)
+print("Employees loaded.")
+###
 
+print("Starting sampling...")
 for interval in [1, 3, 5]:
     employee_pairs = generate_attribute_set([x for x in list(
         employee_pairs) if employee_pairs[x] >= interval])
@@ -300,3 +309,4 @@ for interval in [1, 3, 5]:
             cointegrated_count(random_pairs, employee_type.ALL)))
         results.write("Employee set cointegrated ({} attribute(s): {}\n".format(
             interval, cointegrated_count(employee_pairs, employee_type.EMPLOYEE)))
+        results.write("Total pairs in employee set: {}\n".format(len(employee_pairs)))
