@@ -224,7 +224,7 @@ def generate_random_set(companies, size):
 
     count = 0
     pair_set = []
-    pairs = combinations(companies, 2)
+    pairs = list(combinations(companies, 2))
 
     while True:
         pair = choice(pairs)
@@ -244,7 +244,7 @@ def generate_random_set(companies, size):
     return pair_set
 
 
-def cointegrated_count(pairs, type):
+def cointegrated_count(pairs, type, interval):
     cointegrated = pd.DataFrame(
         columns=["pair", "cointegrated 2017", "p-value 2017"]).set_index("pair")
 
@@ -258,10 +258,10 @@ def cointegrated_count(pairs, type):
                 {"pair": pair, "cointegrated 2017": False, "p-value 2017": p_value}, ignore_index=True)
     if type == employee_type.ALL:
         cointegrated.to_csv(
-            "experiment_1/random_q2.csv", index=False)
+            "experiment_1/random_q2.csv_interval_{}.csv".format(interval), index=False)
     elif type == employee_type.EMPLOYEE:
         cointegrated.to_csv(
-            "experiment_1/employees_q2.csv", index=False)
+            "experiment_1/employees_q2_interval_{}.csv".format(interval), index=False)
 
     return len(cointegrated)
 
@@ -276,12 +276,13 @@ print("Graph loaded.")
 
 ###
 if path.isfile(COMPANIES_CACHE):
-    comapnies_list = pop_cache(COMPANIES_CACHE)
+    companies_list = pop_cache(COMPANIES_CACHE)
 else:
     companies_list = set()
     for row in query(graph, employee_type.ALL):
         companies_list.add(row[0])
-    push_cache(COMPANIES_CACHE, list(companies_list))
+    companies_list = list(companies_list)
+    push_cache(COMPANIES_CACHE, companies_list)
 print("Companies loaded.")
 ###
 
@@ -302,7 +303,7 @@ for interval in [1, 3, 5]:
 
     with open("experiment_1/q2_2017_results.txt", "a") as results:
         results.write("Random set cointegrated: {}\n".format(
-            cointegrated_count(random_pairs, employee_type.ALL)))
+            cointegrated_count(random_pairs, employee_type.ALL, interval)))
         results.write("Employee set cointegrated ({} attribute(s): {}\n".format(
-            interval, cointegrated_count(employee_pairs, employee_type.EMPLOYEE)))
+            interval, cointegrated_count(employee_pairs, employee_type.EMPLOYEE, interval)))
         results.write("Total pairs in employee set: {}\n".format(len(employee_pairs)))
