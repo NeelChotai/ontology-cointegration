@@ -73,7 +73,7 @@ def cointegrate(ticker1, ticker2):
             series1.to_csv("stocks/{}.csv".format(ticker1), index=False)
 
         if path.exists("stocks/{}.csv".format(ticker2)):
-            series2 = pd.read_csv("stocks/{}.csv".format(ticker1))
+            series2 = pd.read_csv("stocks/{}.csv".format(ticker2))
             series2["Date"] = series2["Date"].apply(pd.to_datetime)
         else:
             series2 = yf.download(ticker2, start=COINTEGRATION_START_DATE, end=COINTEGRATION_END_DATE).filter(
