@@ -12,6 +12,7 @@ import statsmodels.api as sm
 import rdflib
 import pickle
 from itertools import combinations
+from glob import glob
 
 ###
 # the dates between which cointegration is tested
@@ -53,9 +54,8 @@ def pop_cache(cache_path):
 def populate():
     graph = rdflib.Graph()
 
-    for x in range(83):
-        graph.parse("data/ownership-{}.nt".format(str(x)), format="nt")
-
+    for nt in glob("2017/*.nt"):
+        graph.parse(nt, format="nt")
     return graph
 
 
@@ -119,7 +119,7 @@ def query(graph, type):
                 ?company <http://york.ac.uk/tradingsymbol> ?t1 .
                 ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
                 ?quarter <http://york.ac.uk/periodreport> ?q .
-                FILTER(?t1 != ?t2 && regex(str(?quarter), "2017/QTR2"))
+                FILTER(?t1 != ?t2)
                 } }
             ''')  # returns pairs of companies and person
     elif type == employee_type.EMPLOYEE:
@@ -132,18 +132,15 @@ def query(graph, type):
                 ?person <http://xmlns.com/foaf/0.1/name> ?p .
                 ?company <http://york.ac.uk/tradingsymbol> ?t1 .
                 ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
-                ?quarter <http://york.ac.uk/periodreport> ?q .
-                FILTER(?t1 != ?t2 && regex(str(?quarter), "2017/QTR2"))
+                FILTER(?t1 != ?t2)
                 } }
             ''')  # returns pairs of companies and person
     elif type == employee_type.ALL:
         query = graph.query(
             '''
-            SELECT DISTINCT ?t
+            SELECT ?t
             WHERE { {
                 ?company <http://york.ac.uk/tradingsymbol> ?t .
-                ?quarter <http://york.ac.uk/periodreport> ?q .
-                FILTER(regex(str(?quarter), "2017/QTR2"))
                 } }
             ''')  # all companies in quarter
     return query
@@ -159,7 +156,6 @@ def clean(ticker):
     ticker = ticker.replace('BFA, BFB', "BFB")
     for symbol in replace_with_blank:
         ticker = ticker.replace(symbol, "")
-
     return ticker
 
 
@@ -285,7 +281,7 @@ else:
     companies_list = set()
     for row in query(graph, employee_type.ALL):
         companies_list.add(row[0])
-    push_cache(COMPANIES_CACHE, list(comapnies_list))
+    push_cache(COMPANIES_CACHE, list(companies_list))
 print("Companies loaded.")
 ###
 
