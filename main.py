@@ -35,9 +35,7 @@ class employee_type(Enum):
     ALL = 2
 
 
-GRAPH_CACHE = "./.cache/graph.cache"
-COMPANIES_CACHE = "./.cache/companies.cache"
-EMPLOYEES_CACHE = "./.cache/employees.cache"
+GRAPH_CACHE = "/tmp/graph.cache"
 
 
 def push_cache(cache_path, input_structure):
@@ -50,6 +48,7 @@ def pop_cache(cache_path):
     infile = open(cache_path, "rb")
     cached = pickle.load(infile)
     infile.close()
+
     return cached
 
 
@@ -58,6 +57,7 @@ def populate():
 
     for nt in glob("2017/*.nt"):
         graph.parse(nt, format="nt")
+
     return graph
 
 
@@ -146,6 +146,7 @@ def query(graph, type):
                 ?company <http://york.ac.uk/tradingsymbol> ?t .
                 } }
             ''')  # all companies in quarter
+
     return query
 
 
@@ -159,6 +160,7 @@ def clean(ticker):
     ticker = ticker.replace('BFA, BFB', "BFB")
     for symbol in replace_with_blank:
         ticker = ticker.replace(symbol, "")
+
     return ticker
 
 
@@ -248,17 +250,21 @@ def generate_random_set(companies, size):
 
 
 def cointegrated_count(pairs, type, interval):
+    count = 0
     cointegrated = pd.DataFrame(
-        columns=["pair", "cointegrated 2017", "p-value 2017"]).set_index("pair")
+        columns=["pair", "cointegrated 2017", "p-value 2017"])
+    cointegrated.set_index("pair", inplace=True)
 
     for pair in pairs:
         result, p_value = cointegrate(pair[0], pair[1])
         if result == coint_return.RELATIONSHIP:
             cointegrated = cointegrated.append(
                 {"pair": pair, "cointegrated 2017": True, "p-value 2017": p_value}, ignore_index=True)
+            count += 1
         elif result == coint_return.NO_RELATIONSHIP:
             cointegrated = cointegrated.append(
                 {"pair": pair, "cointegrated 2017": False, "p-value 2017": p_value}, ignore_index=True)
+
     if type == employee_type.ALL:
         cointegrated.to_csv(
             "experiment_1/random_q2.csv_interval_{}.csv".format(interval), index=False)
@@ -266,51 +272,32 @@ def cointegrated_count(pairs, type, interval):
         cointegrated.to_csv(
             "experiment_1/employees_q2_interval_{}.csv".format(interval), index=False)
 
-    return len(cointegrated)
+    return count
 
 
-###
 if path.isfile(GRAPH_CACHE):
     graph = pop_cache(GRAPH_CACHE)
 else:
     graph = populate()
     push_cache(GRAPH_CACHE, graph)
-print("Graph loaded.")
-###
 
-###
-if path.isfile(COMPANIES_CACHE):
-    companies_list = pop_cache(COMPANIES_CACHE)
-else:
-    companies_list = set()
-    for row in query(graph, employee_type.ALL):
-        companies_list.add(row[0])
-    companies_list = list(companies_list)
-    push_cache(COMPANIES_CACHE, companies_list)
-print("Companies loaded.")
-###
+companies_list = set()
+for row in query(graph, employee_type.ALL):
+    companies_list.add(str(row[0]))
 
-###
-if path.isfile(EMPLOYEES_CACHE):
-    employee_dict = pop_cache(EMPLOYEES_CACHE)
-else:
-    employee_dict = pairs_with_attributes(
-        query(graph, employee_type.EMPLOYEE))
-    push_cache(EMPLOYEES_CACHE, employee_dict)
-print("Employees loaded.")
-###
+employee_dict = pairs_with_attributes(query(graph, employee_type.EMPLOYEE))
 
-print("Starting sampling...")
 for interval in [1, 3, 5]:
     employee_pairs = [x for x in list(
         employee_dict) if employee_dict[x] >= interval]
     employee_pairs = generate_attribute_set(employee_pairs)
-    random_pairs = generate_random_set(companies_list, len(employee_pairs))
+    random_pairs = generate_random_set(
+        list(companies_list), len(employee_pairs))
 
     with open("experiment_1/q2_2017_results.txt", "a") as results:
         results.write("Random set cointegrated: {}\n".format(
             cointegrated_count(random_pairs, employee_type.ALL, interval)))
-        results.write("Employee set cointegrated ({} attribute(s): {}\n".format(
+        results.write("Employee set cointegrated ({} attribute(s)): {}\n".format(
             interval, cointegrated_count(employee_pairs, employee_type.EMPLOYEE, interval)))
-        results.write("Total pairs in employee set: {}\n".format(
+        results.write("Total pairs in each set: {}\n".format(
             len(employee_pairs)))
