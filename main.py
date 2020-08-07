@@ -13,6 +13,7 @@ import rdflib
 import pickle
 from itertools import combinations
 from glob import glob
+from time import sleep
 
 ###
 # the dates between which cointegration is tested
@@ -38,6 +39,7 @@ GRAPH_CACHE = "./.cache/graph.cache"
 COMPANIES_CACHE = "./.cache/companies.cache"
 EMPLOYEES_CACHE = "./.cache/employees.cache"
 
+
 def push_cache(cache_path, input_structure):
     outfile = open(cache_path, "wb")
     pickle.dump(input_structure, outfile)
@@ -59,30 +61,31 @@ def populate():
     return graph
 
 
+def fetch_ticker(ticker):
+    if path.isfile("stocks/{}.csv".format(ticker)):
+        series = pd.read_csv("stocks/{}.csv".format(ticker))
+        series["Date"] = series["Date"].apply(pd.to_datetime)
+    else:
+        try:
+            series = yf.download(ticker, start=COINTEGRATION_START_DATE, end=COINTEGRATION_END_DATE,
+                                 threads=False).filter(["Date", "Close"]).reset_index(drop=False)
+            series.to_csv("stocks/{}.csv".format(ticker), index=False)
+        except:
+            return None
+    return series
+
+
 def cointegrate(ticker1, ticker2):
     # cointegrates two time series given by tickers
     # return type: coint_return signifying relationship
 
-    try:  # handle ticker not found errors
-        if path.isfile("stocks/{}.csv".format(ticker1)):
-            series1 = pd.read_csv("stocks/{}.csv".format(ticker1))
-            series1["Date"] = series1["Date"].apply(pd.to_datetime)
-        else:
-            series1 = yf.download(ticker1, start=COINTEGRATION_START_DATE, end=COINTEGRATION_END_DATE).filter(
-                ["Date", "Close"]).reset_index(drop=False)
-            series1.to_csv("stocks/{}.csv".format(ticker1), index=False)
+    series1 = fetch_ticker(ticker1)
+    series2 = fetch_ticker(ticker2)
 
-        if path.exists("stocks/{}.csv".format(ticker2)):
-            series2 = pd.read_csv("stocks/{}.csv".format(ticker2))
-            series2["Date"] = series2["Date"].apply(pd.to_datetime)
-        else:
-            series2 = yf.download(ticker2, start=COINTEGRATION_START_DATE, end=COINTEGRATION_END_DATE).filter(
-                ["Date", "Close"]).reset_index(drop=False)
-            series2.to_csv("stocks/{}.csv".format(ticker2), index=False)
+    try:
+        merged = pd.merge(series1, series2, how="outer", on=["Date"])
     except:
         return (coint_return.INVALID, None)
-
-    merged = pd.merge(series1, series2, how="outer", on=["Date"])
     merged.dropna(inplace=True)
     merged.reset_index(inplace=True, drop=False)
 
@@ -265,6 +268,7 @@ def cointegrated_count(pairs, type, interval):
 
     return len(cointegrated)
 
+
 ###
 if path.isfile(GRAPH_CACHE):
     graph = pop_cache(GRAPH_CACHE)
@@ -288,17 +292,19 @@ print("Companies loaded.")
 
 ###
 if path.isfile(EMPLOYEES_CACHE):
-    employee_pairs = pop_cache(EMPLOYEES_CACHE)
+    employee_dict = pop_cache(EMPLOYEES_CACHE)
 else:
-    employee_pairs = pairs_with_attributes(query(graph, employee_type.EMPLOYEE))
-    push_cache(EMPLOYEES_CACHE, employee_pairs)
+    employee_dict = pairs_with_attributes(
+        query(graph, employee_type.EMPLOYEE))
+    push_cache(EMPLOYEES_CACHE, employee_dict)
 print("Employees loaded.")
 ###
 
 print("Starting sampling...")
 for interval in [1, 3, 5]:
-    employee_pairs = generate_attribute_set([x for x in list(
-        employee_pairs) if employee_pairs[x] >= interval])
+    employee_pairs = [x for x in list(
+        employee_dict) if employee_dict[x] >= interval]
+    employee_pairs = generate_attribute_set(employee_pairs)
     random_pairs = generate_random_set(companies_list, len(employee_pairs))
 
     with open("experiment_1/q2_2017_results.txt", "a") as results:
@@ -306,4 +312,5 @@ for interval in [1, 3, 5]:
             cointegrated_count(random_pairs, employee_type.ALL, interval)))
         results.write("Employee set cointegrated ({} attribute(s): {}\n".format(
             interval, cointegrated_count(employee_pairs, employee_type.EMPLOYEE, interval)))
-        results.write("Total pairs in employee set: {}\n".format(len(employee_pairs)))
+        results.write("Total pairs in employee set: {}\n".format(
+            len(employee_pairs)))
