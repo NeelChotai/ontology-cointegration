@@ -15,13 +15,6 @@ from itertools import combinations
 from glob import glob
 from time import sleep
 
-###
-# the dates between which cointegration is tested
-COINTEGRATION_START_DATE = "2017-04-01"
-COINTEGRATION_END_DATE = "2017-06-30"
-TRADING_DAYS = 63
-###
-
 
 class coint_return(Enum):
     RELATIONSHIP = 0
@@ -35,7 +28,15 @@ class employee_type(Enum):
     ALL = 2
 
 
+###
+# the dates between which cointegration is tested
+COINTEGRATION_START_DATE = "2017-04-01"
+COINTEGRATION_END_DATE = "2017-06-30"
+TRADING_DAYS = 63
+###
+
 GRAPH_CACHE = "/tmp/graph.cache"
+RANDOM_SET_SIZE = 50000
 
 
 def push_cache(cache_path, input_structure):
@@ -253,7 +254,6 @@ def cointegrated_count(pairs, type, interval):
     count = 0
     cointegrated = pd.DataFrame(
         columns=["pair", "cointegrated 2017", "p-value 2017"])
-    cointegrated.set_index("pair", inplace=True)
 
     for pair in pairs:
         result, p_value = cointegrate(pair[0], pair[1])
@@ -265,12 +265,13 @@ def cointegrated_count(pairs, type, interval):
             cointegrated = cointegrated.append(
                 {"pair": pair, "cointegrated 2017": False, "p-value 2017": p_value}, ignore_index=True)
 
+    cointegrated.set_index("pair", inplace=True)
+
     if type == employee_type.ALL:
-        cointegrated.to_csv(
-            "experiment_1/random_q2.csv_interval_{}.csv".format(interval), index=False)
+        cointegrated.to_csv("experiment_1/random_q2.csv")
     elif type == employee_type.EMPLOYEE:
         cointegrated.to_csv(
-            "experiment_1/employees_q2_interval_{}.csv".format(interval), index=False)
+            "experiment_1/employees_q2_interval_{}.csv".format(interval))
 
     return count
 
@@ -284,15 +285,14 @@ else:
 companies_list = set()
 for row in query(graph, employee_type.ALL):
     companies_list.add(str(row[0]))
+random_pairs = generate_random_set(list(companies_list), RANDOM_SET_SIZE)
 
 employee_dict = pairs_with_attributes(query(graph, employee_type.EMPLOYEE))
 
-for interval in [1, 3, 5]:
+for interval in [2]:
     employee_pairs = [x for x in list(
         employee_dict) if employee_dict[x] >= interval]
     employee_pairs = generate_attribute_set(employee_pairs)
-    random_pairs = generate_random_set(
-        list(companies_list), len(employee_pairs))
 
     with open("experiment_1/q2_2017_results.txt", "a") as results:
         results.write("Random set cointegrated: {}\n".format(
