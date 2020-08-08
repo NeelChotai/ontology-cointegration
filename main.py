@@ -250,7 +250,7 @@ def generate_random_set(companies, size):
     return pair_set
 
 
-def cointegrated_count(pairs, type, interval):
+def cointegrated_count_first(pairs, type, interval):
     count = 0
     cointegrated = pd.DataFrame(
         columns=["pair", "cointegrated 2017", "p-value 2017"])
@@ -261,7 +261,7 @@ def cointegrated_count(pairs, type, interval):
             cointegrated = cointegrated.append(
                 {"pair": pair, "cointegrated 2017": True, "p-value 2017": p_value}, ignore_index=True)
             count += 1
-        elif result == coint_return.NO_RELATIONSHIP:
+        elif result == coint_return.NO_RELATIONSHIP:  # needs to be changed on 2018 test
             cointegrated = cointegrated.append(
                 {"pair": pair, "cointegrated 2017": False, "p-value 2017": p_value}, ignore_index=True)
 
@@ -276,28 +276,32 @@ def cointegrated_count(pairs, type, interval):
     return count
 
 
+def cointegrated_count_last():  # placeholder for 2018 testing
+    return
+
+
 if path.isfile(GRAPH_CACHE):
     graph = pop_cache(GRAPH_CACHE)
 else:
     graph = populate()
     push_cache(GRAPH_CACHE, graph)
 
-companies_list = set()
+'''companies_list = set()
 for row in query(graph, employee_type.ALL):
     companies_list.add(str(row[0]))
-random_pairs = generate_random_set(list(companies_list), RANDOM_SET_SIZE)
+random_pairs = generate_random_set(list(companies_list), RANDOM_SET_SIZE)'''
 
 employee_dict = pairs_with_attributes(query(graph, employee_type.EMPLOYEE))
 
-for interval in [2]:
+for interval in [4]:
     employee_pairs = [x for x in list(
         employee_dict) if employee_dict[x] >= interval]
     employee_pairs = generate_attribute_set(employee_pairs)
 
     with open("experiment_1/q2_2017_results.txt", "a") as results:
-        results.write("Random set cointegrated: {}\n".format(
-            cointegrated_count(random_pairs, employee_type.ALL, interval)))
+        '''results.write("Random set cointegrated: {}\n".format(
+            cointegrated_count(random_pairs, employee_type.ALL, interval)))'''
         results.write("Employee set cointegrated ({} attribute(s)): {}\n".format(
-            interval, cointegrated_count(employee_pairs, employee_type.EMPLOYEE, interval)))
-        results.write("Total pairs in each set: {}\n".format(
+            interval, cointegrated_count_first(employee_pairs, employee_type.EMPLOYEE, interval)))
+        results.write("Total pairs in employee set: {}\n".format(
             len(employee_pairs)))
