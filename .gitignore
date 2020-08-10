@@ -3,3 +3,5 @@ history
 __pycache__
 env
 .cache
+experiments
+stocks

@@ -278,10 +278,10 @@ def cointegrated_count_first(pairs, type, interval):
     return count
 
 
-def cointegrated_count_last(directory):  # placeholder for 2018 testing
+def cointegrated_count_last(directory):
     count = 0
-    cointegrated = pd.read_csv(directory)
-    pairs = cointegrated["pair"].to_list()
+    cointegrated = pd.read_csv(directory).set_index("pair")
+    pairs = cointegrated.index.values
 
     for pair in pairs:
         tuple_pair = literal_eval(pair)
@@ -294,7 +294,6 @@ def cointegrated_count_last(directory):  # placeholder for 2018 testing
             cointegrated.loc[pair, "cointegrated 2018"] = False
             cointegrated.loc[pair, "p-value 2018"] = p_value
 
-    cointegrated.set_index("pair", inplace=True)
     cointegrated.to_csv(directory)
 
     return (count, len(cointegrated))
@@ -316,6 +315,6 @@ for interval in range(1, 6):
     with open("experiments/q2_2018_results.txt", "a") as results:
         total_cointegrated, total_size = cointegrated_count_last(
             "experiments/employees_q2_interval_{}.csv".format(interval))
-        results.write("Employee set cointegrated ({} attribute(s)): {}\n".format(
+        results.write("\nEmployee set cointegrated ({} attribute(s)): {}\n".format(
             interval, total_cointegrated))
         results.write("Total pairs in employee set: {}\n".format(total_size))
