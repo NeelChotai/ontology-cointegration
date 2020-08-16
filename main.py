@@ -13,7 +13,6 @@ import rdflib
 import pickle
 from itertools import combinations
 from glob import glob
-from time import sleep
 from ast import literal_eval
 
 
@@ -57,7 +56,7 @@ def pop_cache(cache_path):
 def populate():
     graph = rdflib.Graph()
 
-    for nt in glob("data/2017/*.nt"):
+    for nt in glob("data/2018/*.nt"):
         graph.parse(nt, format="nt")
 
     return graph
@@ -255,25 +254,25 @@ def generate_random_set(companies, size):
 def cointegrated_count_first(pairs, type, interval):
     count = 0
     cointegrated = pd.DataFrame(
-        columns=["pair", "cointegrated 2017", "p-value 2017"])
+        columns=["pair", "cointegrated 2018", "p-value 2018"])
 
     for pair in pairs:
         result, p_value = cointegrate(pair[0], pair[1])
         if result == coint_return.RELATIONSHIP:
             cointegrated = cointegrated.append(
-                {"pair": pair, "cointegrated 2017": True, "p-value 2017": p_value}, ignore_index=True)
+                {"pair": pair, "cointegrated 2018": True, "p-value 2018": p_value}, ignore_index=True)
             count += 1
         elif result == coint_return.NO_RELATIONSHIP:
             cointegrated = cointegrated.append(
-                {"pair": pair, "cointegrated 2017": False, "p-value 2017": p_value}, ignore_index=True)
+                {"pair": pair, "cointegrated 2018": False, "p-value 2018": p_value}, ignore_index=True)
 
     cointegrated.set_index("pair", inplace=True)
 
     if type == employee_type.ALL:
-        cointegrated.to_csv("experiments/random_q2.csv")
+        cointegrated.to_csv("experiments/random_q2_2018.csv")
     elif type == employee_type.EMPLOYEE:
         cointegrated.to_csv(
-            "experiments/employees_q2_interval_{}.csv".format(interval))
+            "experiments/employees_q2_2018_interval_{}.csv".format(interval))
 
     return count
 
@@ -287,12 +286,12 @@ def cointegrated_count_last(directory):
         tuple_pair = literal_eval(pair)
         result, p_value = cointegrate(tuple_pair[0], tuple_pair[1])
         if result == coint_return.RELATIONSHIP:
-            cointegrated.loc[pair, "cointegrated 2018"] = True
-            cointegrated.loc[pair, "p-value 2018"] = p_value
+            cointegrated.loc[pair, "cointegrated 2019"] = True
+            cointegrated.loc[pair, "p-value 2019"] = p_value
             count += 1
         else:
-            cointegrated.loc[pair, "cointegrated 2018"] = False
-            cointegrated.loc[pair, "p-value 2018"] = p_value
+            cointegrated.loc[pair, "cointegrated 2019"] = False
+            cointegrated.loc[pair, "p-value 2019"] = p_value
 
     cointegrated.to_csv(directory)
 
@@ -305,16 +304,25 @@ else:
     graph = populate()
     push_cache(GRAPH_CACHE, graph)
 
+companies_list = set()
+for row in query(graph, employee_type.ALL):
+    companies_list.add(str(row[0]))
+random_pairs = generate_random_set(list(companies_list), RANDOM_SET_SIZE)
+
+employee_dict = pairs_with_attributes(query(graph, employee_type.EMPLOYEE))
+
 with open("experiments/q2_2018_results.txt", "a") as results:
-    total_cointegrated, total_size = cointegrated_count_last(
-        "experiments/random_q2.csv")
-    results.write("Random set cointegrated: {}\n".format(total_cointegrated))
-    results.write("Total pairs in random set: {}\n".format(total_size))
+    results.write("Random set cointegrated: {}\n".format(
+        cointegrated_count_first(random_pairs, employee_type.ALL, None)))
+    results.write("Total pairs in random set: {}\n".format(RANDOM_SET_SIZE))
 
 for interval in range(1, 6):
     with open("experiments/q2_2018_results.txt", "a") as results:
-        total_cointegrated, total_size = cointegrated_count_last(
-            "experiments/employees_q2_interval_{}.csv".format(interval))
+        employee_pairs = [x for x in list(
+            employee_dict) if employee_dict[x] >= interval]
+        employee_pairs = generate_attribute_set(employee_pairs)
+
         results.write("\nEmployee set cointegrated ({} attribute(s)): {}\n".format(
-            interval, total_cointegrated))
-        results.write("Total pairs in employee set: {}\n".format(total_size))
+            interval, cointegrated_count_first(employee_pairs, employee_type.EMPLOYEE, interval)))
+        results.write("Total pairs in employee set: {}\n".format(
+            len(employee_pairs)))
