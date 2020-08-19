@@ -28,15 +28,24 @@ class employee_type(Enum):
     ALL = 2
 
 
-###
-# the dates between which cointegration is tested
-COINTEGRATION_START_DATE = "2018-04-01"
-COINTEGRATION_END_DATE = "2018-06-30"
-TRADING_DAYS = 64
-###
+class Quarter:
+    def __init__(self, start, end, days, folder):
+        self.start = start
+        self.end = end
+        self.days = days
+        self.folder = folder
 
+
+# constants
+Q22017 = Quarter("2017-04-01", "2017-06-30", 63, "2017Q2")
+Q32017 = Quarter("2017-07-01", "2017-09-30", 64, "2017Q3")
+Q42017 = Quarter("2017-10-01", "2017-12-31", 63, "2017Q4")
+Q12018 = Quarter("2018-01-01", "2018-03-31", 61, "2018Q1")
+Q22018 = Quarter("2018-04-01", "2018-06-30", 64, "2018Q2")
+OBJECT_LIST = [Q32017, Q42017, Q12018, Q22018]
 GRAPH_CACHE = "/tmp/graph.cache"
 RANDOM_SET_SIZE = 50000
+###
 
 
 def push_cache(cache_path, input_structure):
@@ -56,14 +65,14 @@ def pop_cache(cache_path):
 def populate():
     graph = rdflib.Graph()
 
-    for nt in glob("data/2018/*.nt"):
+    for nt in glob("data/{}/*.nt".format(QUARTER)):
         graph.parse(nt, format="nt")
 
     return graph
 
 
 def fetch_ticker(ticker):
-    directory = "stocks/2018/{}.csv".format(ticker)
+    directory = "stocks/{}/{}.csv".format(QUARTER, ticker)
     if path.isfile(directory):
         series = pd.read_csv(directory)
         series["Date"] = series["Date"].apply(pd.to_datetime)
@@ -253,31 +262,56 @@ def generate_random_set(companies, size):
 
 def cointegrated_count_first(pairs, type, interval):
     count = 0
-    cointegrated = pd.DataFrame(
-        columns=["pair", "cointegrated 2018", "p-value 2018"])
+
+    if type == employee_type.ALL:
+        directory = "experiments/random.csv"
+    elif type == employee_type.EMPLOYEE:
+        directory = "experiments/employees_interval_{}.csv".format(interval)
+
+    if path.isfile(directory):
+        cointegrated = pd.read_csv(directory).set_index("pair")
+        new_cointegrated = pd.DataFrame(columns=["pair", QUARTER])
+        if pairs == None:
+            pairs = [literal_eval(p) for p in cointegrated.index.values] 
+        else:
+            new_pairs = [literal_eval(p) for p in cointegrated.index.values]
+            pairs = set(pairs)
+            pairs.update(new_pairs)
+            pairs = list(pairs)
+    else:
+        cointegrated = pd.DataFrame(columns=["pair", QUARTER]) # this will not work in its current form
 
     for pair in pairs:
         result, p_value = cointegrate(pair[0], pair[1])
+        pair = str(pair)
         if result == coint_return.RELATIONSHIP:
-            cointegrated = cointegrated.append(
-                {"pair": pair, "cointegrated 2018": True, "p-value 2018": p_value}, ignore_index=True)
+            if pair in cointegrated.index.values:
+                cointegrated.loc[pair, QUARTER] = True
+            else:
+                new_cointegrated = new_cointegrated.append(
+                    {"pair": pair, QUARTER: True}, ignore_index=True)
             count += 1
         elif result == coint_return.NO_RELATIONSHIP:
-            cointegrated = cointegrated.append(
-                {"pair": pair, "cointegrated 2018": False, "p-value 2018": p_value}, ignore_index=True)
+            if pair in cointegrated.index.values:
+                cointegrated.loc[pair, QUARTER] = False
+            else:
+                new_cointegrated = new_cointegrated.append(
+                    {"pair": pair, QUARTER: False}, ignore_index=True)
+        else:
+            if pair in cointegrated.index.values:
+                cointegrated.loc[pair, QUARTER] = "DISSOLVED"
+            else:
+                new_cointegrated = new_cointegrated.append(
+                    {"pair": pair, QUARTER: "DISSOLVED"}, ignore_index=True)
 
-    cointegrated.set_index("pair", inplace=True)
-
-    if type == employee_type.ALL:
-        cointegrated.to_csv("experiments/random_q2_2018.csv")
-    elif type == employee_type.EMPLOYEE:
-        cointegrated.to_csv(
-            "experiments/employees_q2_2018_interval_{}.csv".format(interval))
+    new_cointegrated.set_index("pair", inplace=True)
+    cointegrated = cointegrated.append(new_cointegrated)
+    cointegrated.to_csv(directory)
 
     return count
 
 
-def cointegrated_count_last(directory):
+def cointegrated_count_last(directory):  # todo: fix this
     count = 0
     cointegrated = pd.read_csv(directory).set_index("pair")
     pairs = cointegrated.index.values
@@ -298,31 +332,38 @@ def cointegrated_count_last(directory):
     return (count, len(cointegrated))
 
 
-if path.isfile(GRAPH_CACHE):
-    graph = pop_cache(GRAPH_CACHE)
-else:
+def get_companies(graph):
+    companies_list = set()
+    for row in query(graph, employee_type.ALL):
+        companies_list.add(str(row[0]))
+    random_pairs = generate_random_set(list(companies_list), RANDOM_SET_SIZE)
+
+    return random_pairs
+
+
+for obj in OBJECT_LIST:
+    global COINTEGRATION_START_DATE
+    global COINTEGRATION_END_DATE
+    global TRADING_DAYS
+    global QUARTER
+
+    COINTEGRATION_START_DATE = obj.start
+    COINTEGRATION_END_DATE = obj.end
+    TRADING_DAYS = obj.days
+    QUARTER = obj.folder
+
     graph = populate()
-    push_cache(GRAPH_CACHE, graph)
+    employee_dict = pairs_with_attributes(query(graph, employee_type.EMPLOYEE))
 
-companies_list = set()
-for row in query(graph, employee_type.ALL):
-    companies_list.add(str(row[0]))
-random_pairs = generate_random_set(list(companies_list), RANDOM_SET_SIZE)
+    cointegrated_count_first(None, employee_type.ALL, None)
 
-employee_dict = pairs_with_attributes(query(graph, employee_type.EMPLOYEE))
+    with open("experiments/output/{}.txt".format(QUARTER), "a") as results:
+        for interval in range(1, 6):
+            employee_pairs = [x for x in list(
+                employee_dict) if employee_dict[x] >= interval]
+            employee_pairs = generate_attribute_set(employee_pairs)
 
-with open("experiments/q2_2018_results.txt", "a") as results:
-    results.write("Random set cointegrated: {}\n".format(
-        cointegrated_count_first(random_pairs, employee_type.ALL, None)))
-    results.write("Total pairs in random set: {}\n".format(RANDOM_SET_SIZE))
-
-for interval in range(1, 6):
-    with open("experiments/q2_2018_results.txt", "a") as results:
-        employee_pairs = [x for x in list(
-            employee_dict) if employee_dict[x] >= interval]
-        employee_pairs = generate_attribute_set(employee_pairs)
-
-        results.write("\nEmployee set cointegrated ({} attribute(s)): {}\n".format(
-            interval, cointegrated_count_first(employee_pairs, employee_type.EMPLOYEE, interval)))
-        results.write("Total pairs in employee set: {}\n".format(
-            len(employee_pairs)))
+            results.write("\nEmployee set cointegrated ({} attribute(s)): {}\n".format(
+                interval, cointegrated_count_first(employee_pairs, employee_type.EMPLOYEE, interval)))
+            results.write("Total pairs in employee set: {}\n".format(
+                len(employee_pairs)))
