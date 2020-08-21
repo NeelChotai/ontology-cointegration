@@ -1,0 +1,17 @@
+Random set cointegrated: 2821
+Total valid pairs in random set: 48083
+
+Employee set cointegrated (1 attribute(s)): 190
+Total pairs in employee set: 4192
+
+Employee set cointegrated (2 attribute(s)): 14
+Total pairs in employee set: 314
+
+Employee set cointegrated (3 attribute(s)): 8
+Total pairs in employee set: 80
+
+Employee set cointegrated (4 attribute(s)): 7
+Total pairs in employee set: 59
+
+Employee set cointegrated (5 attribute(s)): 4
+Total pairs in employee set: 46
