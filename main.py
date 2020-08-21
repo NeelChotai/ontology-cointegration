@@ -262,6 +262,7 @@ def generate_random_set(companies, size):
 
 def cointegrated_count_first(pairs, type, interval):
     count = 0
+    generated_pairs = None
 
     if type == employee_type.ALL:
         directory = "experiments/random.csv"
@@ -272,37 +273,41 @@ def cointegrated_count_first(pairs, type, interval):
         cointegrated = pd.read_csv(directory).set_index("pair")
         new_cointegrated = pd.DataFrame(columns=["pair", QUARTER])
         if pairs == None:
-            pairs = [literal_eval(p) for p in cointegrated.index.values] 
+            pairs = [literal_eval(p) for p in cointegrated.index.values]
         else:
-            new_pairs = [literal_eval(p) for p in cointegrated.index.values]
-            pairs = set(pairs)
-            pairs.update(new_pairs)
-            pairs = list(pairs)
+            existing_pairs = [literal_eval(p)
+                              for p in cointegrated.index.values]
+            generated_pairs = set(pairs)
+            generated_pairs.update(existing_pairs)
+            generated_pairs = list(generated_pairs)
     else:
-        cointegrated = pd.DataFrame(columns=["pair", QUARTER]) # this will not work in its current form
+        # this will not work in its current form
+        cointegrated = pd.DataFrame(columns=["pair", QUARTER])
 
-    for pair in pairs:
+    for pair in generated_pairs:
         result, p_value = cointegrate(pair[0], pair[1])
-        pair = str(pair)
+        formatted_pair = str(pair)
         if result == coint_return.RELATIONSHIP:
-            if pair in cointegrated.index.values:
-                cointegrated.loc[pair, QUARTER] = True
+            if formatted_pair in cointegrated.index.values:
+                cointegrated.loc[formatted_pair, QUARTER] = True
             else:
                 new_cointegrated = new_cointegrated.append(
-                    {"pair": pair, QUARTER: True}, ignore_index=True)
-            count += 1
+                    {"pair": formatted_pair, QUARTER: True}, ignore_index=True)
+
+            if pair in pairs:
+                count += 1
         elif result == coint_return.NO_RELATIONSHIP:
-            if pair in cointegrated.index.values:
-                cointegrated.loc[pair, QUARTER] = False
+            if formatted_pair in cointegrated.index.values:
+                cointegrated.loc[formatted_pair, QUARTER] = False
             else:
                 new_cointegrated = new_cointegrated.append(
-                    {"pair": pair, QUARTER: False}, ignore_index=True)
+                    {"pair": formatted_pair, QUARTER: False}, ignore_index=True)
         else:
-            if pair in cointegrated.index.values:
-                cointegrated.loc[pair, QUARTER] = "DISSOLVED"
+            if formatted_pair in cointegrated.index.values:
+                cointegrated.loc[formatted_pair, QUARTER] = "DISSOLVED"
             else:
                 new_cointegrated = new_cointegrated.append(
-                    {"pair": pair, QUARTER: "DISSOLVED"}, ignore_index=True)
+                    {"pair": formatted_pair, QUARTER: "DISSOLVED"}, ignore_index=True)
 
     new_cointegrated.set_index("pair", inplace=True)
     cointegrated = cointegrated.append(new_cointegrated)
@@ -364,6 +369,6 @@ for obj in OBJECT_LIST:
             employee_pairs = generate_attribute_set(employee_pairs)
 
             results.write("\nEmployee set cointegrated ({} attribute(s)): {}\n".format(
-                interval, cointegrated_count_first(employee_pairs, employee_type.EMPLOYEE, interval)))
+                interval, cointegrated_count_first(employee_pairs, employee_type.ALL, interval)))
             results.write("Total pairs in employee set: {}\n".format(
                 len(employee_pairs)))
