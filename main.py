@@ -112,8 +112,7 @@ def cointegrate(ticker1, ticker2):
     except:
         return (coint_return.INVALID, None)
 
-    # calculates cointegration using p-value and trace statistic (95% confidence)
-    if p_value < 0.05 and johansen.cvt[0][1] < johansen.lr1[0]:
+    if p_value < 0.05 and johansen.cvt[0][1] < johansen.lr1[0]: # calculates cointegration using p-value and trace statistic (95% confidence)
         return (coint_return.RELATIONSHIP, p_value)
     return (coint_return.NO_RELATIONSHIP, p_value)
 
@@ -337,6 +336,38 @@ def cointegrated_count_last(directory):  # todo: fix this
     return (count, len(cointegrated))
 
 
+def random_sliding_first(pairs):
+    cointegrated = pd.DataFrame(columns=["pair", QUARTER]).set_index("pair")
+
+    for pair in list(pairs):
+        result, p_value = cointegrate(pair[0], pair[1])
+        formatted_pair = str(pair)
+        if result == coint_return.RELATIONSHIP:
+            cointegrated.loc[formatted_pair, QUARTER] = True
+        elif result == coint_return.NO_RELATIONSHIP:
+            cointegrated.loc[formatted_pair, QUARTER] = False
+        else:
+            cointegrated.loc[formatted_pair, QUARTER] = "DISSOLVED"
+
+    cointegrated.to_csv("experiments/random_{}.csv".format(QUARTER))
+
+def random_sliding_last(previous_quarter):
+    cointegrated = pd.read_csv("experiments/random_{}.csv".format(previous_quarter)).set_index("pair")
+    pairs = [literal_eval(p) for p in cointegrated.index.values]
+
+    for pair in pairs:
+        result, p_value = cointegrate(pair[0], pair[1])
+        formatted_pair = str(pair)
+        if result == coint_return.RELATIONSHIP:
+            cointegrated.loc[formatted_pair, QUARTER] = True
+        elif result == coint_return.NO_RELATIONSHIP:
+            cointegrated.loc[formatted_pair, QUARTER] = False
+        else:
+            cointegrated.loc[formatted_pair, QUARTER] = "DISSOLVED"
+
+    cointegrated.to_csv("experiments/random_{}.csv".format(previous_quarter))
+
+
 def get_companies(graph):
     companies_list = set()
     for row in query(graph, employee_type.ALL):
@@ -346,29 +377,60 @@ def get_companies(graph):
     return random_pairs
 
 
-for obj in OBJECT_LIST:
-    global COINTEGRATION_START_DATE
-    global COINTEGRATION_END_DATE
-    global TRADING_DAYS
-    global QUARTER
+def generate_employee_results():
+    for obj in OBJECT_LIST:
+        global COINTEGRATION_START_DATE
+        global COINTEGRATION_END_DATE
+        global TRADING_DAYS
+        global QUARTER
 
-    COINTEGRATION_START_DATE = obj.start
-    COINTEGRATION_END_DATE = obj.end
-    TRADING_DAYS = obj.days
-    QUARTER = obj.folder
+        COINTEGRATION_START_DATE = obj.start
+        COINTEGRATION_END_DATE = obj.end
+        TRADING_DAYS = obj.days
+        QUARTER = obj.folder
 
-    graph = populate()
-    employee_dict = pairs_with_attributes(query(graph, employee_type.EMPLOYEE))
+        graph = populate()
+        employee_dict = pairs_with_attributes(
+            query(graph, employee_type.EMPLOYEE))
 
-    cointegrated_count_first(None, employee_type.ALL, None)
+        cointegrated_count_first(None, employee_type.ALL, None)
 
-    with open("experiments/output/{}.txt".format(QUARTER), "a") as results:
-        for interval in range(1, 6):
-            employee_pairs = [x for x in list(
-                employee_dict) if employee_dict[x] >= interval]
-            employee_pairs = generate_attribute_set(employee_pairs)
+        with open("experiments/output/{}.txt".format(QUARTER), "a") as results:
+            for interval in range(1, 6):
+                employee_pairs = [x for x in list(
+                    employee_dict) if employee_dict[x] >= interval]
+                employee_pairs = generate_attribute_set(employee_pairs)
 
-            results.write("\nEmployee set cointegrated ({} attribute(s)): {}\n".format(
-                interval, cointegrated_count_first(employee_pairs, employee_type.ALL, interval)))
-            results.write("Total pairs in employee set: {}\n".format(
-                len(employee_pairs)))
+                results.write("\nEmployee set cointegrated ({} attribute(s)): {}\n".format(
+                    interval, cointegrated_count_first(employee_pairs, employee_type.ALL, interval)))
+                results.write("Total pairs in employee set: {}\n".format(
+                    len(employee_pairs)))
+
+
+def generate_random_survival():
+    previous_quarter = None
+    for obj in OBJECT_LIST:
+        global COINTEGRATION_START_DATE
+        global COINTEGRATION_END_DATE
+        global TRADING_DAYS
+        global QUARTER
+
+        COINTEGRATION_START_DATE = obj.start
+        COINTEGRATION_END_DATE = obj.end
+        TRADING_DAYS = obj.days
+        QUARTER = obj.folder
+
+        graph = populate()
+        companies_list = set()
+        for row in query(graph, employee_type.ALL):
+            companies_list.add(clean(str(row[0]).upper()))
+        random_pairs = generate_random_set(
+            list(companies_list), RANDOM_SET_SIZE)
+
+        random_sliding_first(random_pairs)
+        if previous_quarter is not None:
+            random_sliding_last(previous_quarter)
+        previous_quarter = QUARTER
+
+
+generate_random_survival()

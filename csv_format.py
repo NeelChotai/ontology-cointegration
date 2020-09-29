@@ -2,6 +2,7 @@ import pandas as pd
 from glob import glob
 
 files = glob("experiments/*.csv")
+random_files = glob("experiments/random*.csv")
 quarters = ['2017Q2', '2017Q3', '2017Q4', '2018Q1']
 
 def clean():
@@ -49,4 +50,16 @@ def count():
             print("{}/{}".format(s, t))
         print("#####")
 
-count()
+def random_count():
+    for directory in random_files:
+        survived = 0
+        results = pd.read_csv(directory).set_index("pair")
+        for i, row in results.iterrows():
+            if str(row[0]) == "True" and str(row[1]) == "True":
+                survived += 1
+
+        print(directory)
+        print("{}/{}".format(survived, len(results.dropna())))
+        print("#####")
+
+random_count()
