@@ -112,7 +112,8 @@ def cointegrate(ticker1, ticker2):
     except:
         return (coint_return.INVALID, None)
 
-    if p_value < 0.05 and johansen.cvt[0][1] < johansen.lr1[0]: # calculates cointegration using p-value and trace statistic (95% confidence)
+    # calculates cointegration using p-value and trace statistic (95% confidence)
+    if p_value < 0.05 and johansen.cvt[0][1] < johansen.lr1[0]:
         return (coint_return.RELATIONSHIP, p_value)
     return (coint_return.NO_RELATIONSHIP, p_value)
 
@@ -280,8 +281,7 @@ def cointegrated_count_first(pairs, type, interval):
             generated_pairs.update(existing_pairs)
             generated_pairs = list(generated_pairs)
     else:
-        # this will not work in its current form
-        cointegrated = pd.DataFrame(columns=["pair", QUARTER])
+        cointegrated = pd.DataFrame(columns=["pair", QUARTER]) # this will not work in its current form
 
     for pair in generated_pairs:
         result, p_value = cointegrate(pair[0], pair[1])
@@ -336,7 +336,12 @@ def cointegrated_count_last(directory):  # todo: fix this
     return (count, len(cointegrated))
 
 
-def random_sliding_first(pairs):
+def sliding_first(type, pairs, interval=None):
+    if type == employee_type.ALL:
+        directory = "experiments/random_{}.csv".format(QUARTER)
+    elif type == employee_type.EMPLOYEE:
+        directory = "experiments/employee_{}_{}.csv".format(interval, QUARTER)
+
     cointegrated = pd.DataFrame(columns=["pair", QUARTER]).set_index("pair")
 
     for pair in list(pairs):
@@ -349,10 +354,17 @@ def random_sliding_first(pairs):
         else:
             cointegrated.loc[formatted_pair, QUARTER] = "DISSOLVED"
 
-    cointegrated.to_csv("experiments/random_{}.csv".format(QUARTER))
+    cointegrated.to_csv(directory)
 
-def random_sliding_last(previous_quarter):
-    cointegrated = pd.read_csv("experiments/random_{}.csv".format(previous_quarter)).set_index("pair")
+
+def sliding_last(type, previous_quarter, interval=None):
+    if type == employee_type.ALL:
+        directory = "experiments/random_{}.csv".format(previous_quarter)
+    elif type == employee_type.EMPLOYEE:
+        directory = "experiments/employee_{}_{}.csv".format(
+            interval, previous_quarter)
+
+    cointegrated = pd.read_csv(directory).set_index("pair")
     pairs = [literal_eval(p) for p in cointegrated.index.values]
 
     for pair in pairs:
@@ -365,7 +377,7 @@ def random_sliding_last(previous_quarter):
         else:
             cointegrated.loc[formatted_pair, QUARTER] = "DISSOLVED"
 
-    cointegrated.to_csv("experiments/random_{}.csv".format(previous_quarter))
+    cointegrated.to_csv(directory)
 
 
 def get_companies(graph):
@@ -407,7 +419,7 @@ def generate_employee_results():
                     len(employee_pairs)))
 
 
-def generate_random_survival():
+def generate_survival(type):
     previous_quarter = None
     for obj in OBJECT_LIST:
         global COINTEGRATION_START_DATE
@@ -421,16 +433,31 @@ def generate_random_survival():
         QUARTER = obj.folder
 
         graph = populate()
-        companies_list = set()
-        for row in query(graph, employee_type.ALL):
-            companies_list.add(clean(str(row[0]).upper()))
-        random_pairs = generate_random_set(
-            list(companies_list), RANDOM_SET_SIZE)
+        if type == employee_type.ALL:
+            companies_list = set()
+            for row in query(graph, employee_type.ALL):
+                companies_list.add(clean(str(row[0]).upper()))
+            random_pairs = generate_random_set(
+                list(companies_list), RANDOM_SET_SIZE)
 
-        random_sliding_first(random_pairs)
-        if previous_quarter is not None:
-            random_sliding_last(previous_quarter)
-        previous_quarter = QUARTER
+            sliding_first(type, random_pairs)
+            if previous_quarter is not None:
+                sliding_last(type, previous_quarter)
+            previous_quarter = QUARTER
+
+        elif type == employee_type.EMPLOYEE:
+            employee_dict = pairs_with_attributes(
+                query(graph, employee_type.EMPLOYEE))
+
+            for interval in range(1, 6):
+                employee_pairs = [x for x in list(
+                    employee_dict) if employee_dict[x] >= interval]
+                employee_pairs = generate_attribute_set(employee_pairs)
+
+                sliding_first(type, random_pairs, interval=interval)
+                if previous_quarter is not None:
+                    sliding_last(type, previous_quarter, interval=interval)
+                previous_quarter = QUARTER
 
 
-generate_random_survival()
+generate_survival(employee_type.EMPLOYEE)
