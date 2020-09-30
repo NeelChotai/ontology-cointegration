@@ -338,9 +338,10 @@ def cointegrated_count_last(directory):  # todo: fix this
 
 def sliding_first(type, pairs, interval=None):
     if type == employee_type.ALL:
-        directory = "experiments/random_{}.csv".format(QUARTER)
+        directory = "experiments/random/random_{}.csv".format(QUARTER)
     elif type == employee_type.EMPLOYEE:
-        directory = "experiments/employee_{}_{}.csv".format(interval, QUARTER)
+        directory = "experiments/employees/interval_{}/employee_{}_{}.csv".format(
+            interval, interval, QUARTER)
 
     cointegrated = pd.DataFrame(columns=["pair", QUARTER]).set_index("pair")
 
@@ -359,10 +360,10 @@ def sliding_first(type, pairs, interval=None):
 
 def sliding_last(type, previous_quarter, interval=None):
     if type == employee_type.ALL:
-        directory = "experiments/random_{}.csv".format(previous_quarter)
+        directory = "experiments/random/random_{}.csv".format(previous_quarter)
     elif type == employee_type.EMPLOYEE:
-        directory = "experiments/employee_{}_{}.csv".format(
-            interval, previous_quarter)
+        directory = "experiments/employees/interval_{}/employee_{}_{}.csv".format(
+            interval, interval, previous_quarter)
 
     cointegrated = pd.read_csv(directory).set_index("pair")
     pairs = [literal_eval(p) for p in cointegrated.index.values]
@@ -454,10 +455,10 @@ def generate_survival(type):
                     employee_dict) if employee_dict[x] >= interval]
                 employee_pairs = generate_attribute_set(employee_pairs)
 
-                sliding_first(type, random_pairs, interval=interval)
+                sliding_first(type, employee_pairs, interval=interval)
                 if previous_quarter is not None:
                     sliding_last(type, previous_quarter, interval=interval)
-                previous_quarter = QUARTER
+            previous_quarter = QUARTER
 
 
 generate_survival(employee_type.EMPLOYEE)
