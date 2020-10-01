@@ -42,7 +42,7 @@ Q32017 = Quarter("2017-07-01", "2017-09-30", 64, "2017Q3")
 Q42017 = Quarter("2017-10-01", "2017-12-31", 63, "2017Q4")
 Q12018 = Quarter("2018-01-01", "2018-03-31", 61, "2018Q1")
 Q22018 = Quarter("2018-04-01", "2018-06-30", 64, "2018Q2")
-OBJECT_LIST = [Q32017, Q42017, Q12018, Q22018]
+OBJECT_LIST = [Q22017, Q32017, Q42017, Q12018, Q22018]
 GRAPH_CACHE = "/tmp/graph.cache"
 RANDOM_SET_SIZE = 50000
 ###
@@ -235,12 +235,13 @@ def generate_attribute_set(companies):
     return pair_set
 
 
-def generate_random_set(companies, size):
+def generate_random_set(companies, size, exclusion_list=None):
     # generates set of pairs of random companies of the length of the attribute set
 
     count = 0
     pair_set = []
-    pairs = list(combinations(companies, 2))
+    all_pairs = list(combinations(companies, 2))
+    pairs = [x for x in all_pairs if x not in exclusion_list]
 
     while True:
         pair = choice(pairs)
@@ -338,7 +339,7 @@ def cointegrated_count_last(directory):  # todo: fix this
 
 def sliding_first(type, pairs, interval=None):
     if type == employee_type.ALL:
-        directory = "experiments/random/random_{}.csv".format(QUARTER)
+        directory = "experiments/random_no_links/random_{}.csv".format(QUARTER)
     elif type == employee_type.EMPLOYEE:
         directory = "experiments/employees/interval_{}/employee_{}_{}.csv".format(
             interval, interval, QUARTER)
@@ -360,7 +361,7 @@ def sliding_first(type, pairs, interval=None):
 
 def sliding_last(type, previous_quarter, interval=None):
     if type == employee_type.ALL:
-        directory = "experiments/random/random_{}.csv".format(previous_quarter)
+        directory = "experiments/random_no_links/random_{}.csv".format(previous_quarter)
     elif type == employee_type.EMPLOYEE:
         directory = "experiments/employees/interval_{}/employee_{}_{}.csv".format(
             interval, interval, previous_quarter)
@@ -434,12 +435,17 @@ def generate_survival(type):
         QUARTER = obj.folder
 
         graph = populate()
+        employee_dict = pairs_with_attributes(
+                query(graph, employee_type.EMPLOYEE))
+                
         if type == employee_type.ALL:
             companies_list = set()
             for row in query(graph, employee_type.ALL):
                 companies_list.add(clean(str(row[0]).upper()))
+            employee_pairs = [x for x in list(
+                employee_dict) if employee_dict[x] >= 1]
             random_pairs = generate_random_set(
-                list(companies_list), RANDOM_SET_SIZE)
+                list(companies_list), RANDOM_SET_SIZE, exclusion_list=set(employee_pairs))
 
             sliding_first(type, random_pairs)
             if previous_quarter is not None:
@@ -447,9 +453,6 @@ def generate_survival(type):
             previous_quarter = QUARTER
 
         elif type == employee_type.EMPLOYEE:
-            employee_dict = pairs_with_attributes(
-                query(graph, employee_type.EMPLOYEE))
-
             for interval in range(1, 6):
                 employee_pairs = [x for x in list(
                     employee_dict) if employee_dict[x] >= interval]
@@ -459,3 +462,5 @@ def generate_survival(type):
                 if previous_quarter is not None:
                     sliding_last(type, previous_quarter, interval=interval)
             previous_quarter = QUARTER
+
+generate_survival(employee_type.ALL)
