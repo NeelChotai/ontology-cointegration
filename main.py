@@ -459,6 +459,3 @@ def generate_survival(type):
                 if previous_quarter is not None:
                     sliding_last(type, previous_quarter, interval=interval)
             previous_quarter = QUARTER
-
-
-generate_survival(employee_type.EMPLOYEE)
