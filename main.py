@@ -6,7 +6,6 @@ from statsmodels.tsa.stattools import coint
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import yfinance as yf
 import statsmodels.api as sm
 import rdflib

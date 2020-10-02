@@ -41,5 +41,3 @@ def count(files):
         print(directory)
         print("{}/{}".format(survived, results.iloc[:, 0].value_counts()[True]))
         print("#####")
-
-count(employee_files)
