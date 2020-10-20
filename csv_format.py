@@ -3,7 +3,7 @@ from glob import glob
 from main import employee_type
 
 employee_files = glob("experiments/employees/*/*.csv")
-random_files = glob("experiments/random/*.csv")
+random_files = glob("experiments/random_no_links/*.csv")
 quarters = ['2017Q2', '2017Q3', '2017Q4', '2018Q1']
 
 
@@ -41,3 +41,5 @@ def count(files):
         print(directory)
         print("{}/{}".format(survived, results.iloc[:, 0].value_counts()[True]))
         print("#####")
+
+count(random_files)
