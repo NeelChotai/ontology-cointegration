@@ -448,27 +448,21 @@ def cointegrated_count(pairs, type, interval): # todo: change the function of th
     for pair in generated_pairs:
         result, p_value = cointegrate(pair[0], pair[1])
         formatted_pair = str(pair)
-        if result == coint_return.RELATIONSHIP:  # todo: refactor this
-            if formatted_pair in cointegrated.index.values:
-                cointegrated.loc[formatted_pair, QUARTER] = True
-            else:
-                new_cointegrated = new_cointegrated.append(
-                    {"pair": formatted_pair, QUARTER: True}, ignore_index=True)
+        if result == coint_return.RELATIONSHIP:
+            relationship = True
 
             if pair in pairs:
                 count += 1
         elif result == coint_return.NO_RELATIONSHIP:
-            if formatted_pair in cointegrated.index.values:
-                cointegrated.loc[formatted_pair, QUARTER] = False
-            else:
-                new_cointegrated = new_cointegrated.append(
-                    {"pair": formatted_pair, QUARTER: False}, ignore_index=True)
+            relationship = False
         else:
-            if formatted_pair in cointegrated.index.values:
-                cointegrated.loc[formatted_pair, QUARTER] = "DISSOLVED"
-            else:
-                new_cointegrated = new_cointegrated.append(
-                    {"pair": formatted_pair, QUARTER: "DISSOLVED"}, ignore_index=True)
+            relationship = "DISSOLVED"
+
+        if formatted_pair in cointegrated.index.values:
+            cointegrated.loc[formatted_pair, QUARTER] = relationship
+        else:
+            new_cointegrated = new_cointegrated.append(
+                {"pair": formatted_pair, QUARTER: relationship}, ignore_index=True)
 
     new_cointegrated.set_index("pair", inplace=True)
     cointegrated = cointegrated.append(new_cointegrated)
