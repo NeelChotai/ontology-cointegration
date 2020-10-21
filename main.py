@@ -12,6 +12,7 @@ from glob import glob
 from ast import literal_eval
 
 
+#region Classes
 class coint_return(Enum):
     RELATIONSHIP = 0
     NO_RELATIONSHIP = 1
@@ -30,9 +31,10 @@ class Quarter:
         self.end = end
         self.days = days
         self.folder = folder
+#endregion
 
 
-# constants
+#region Constants
 Q22017 = Quarter("2017-04-01", "2017-06-30", 63, "2017Q2")
 Q32017 = Quarter("2017-07-01", "2017-09-30", 64, "2017Q3")
 Q42017 = Quarter("2017-10-01", "2017-12-31", 63, "2017Q4")
@@ -41,9 +43,10 @@ Q22018 = Quarter("2018-04-01", "2018-06-30", 64, "2018Q2")
 OBJECT_LIST = [Q22017, Q32017, Q42017, Q12018, Q22018]
 GRAPH_CACHE = "/tmp/graph.cache"
 RANDOM_SET_SIZE = 50000
-###
+#endregion
 
 
+#region Caching
 def push_cache(cache_path, input_structure):
     """
     Caches a data structure (primarily used for ontologies)
@@ -76,8 +79,10 @@ def pop_cache(cache_path):
     infile.close()
 
     return cached
+#endregion
 
 
+#region Ontology
 def populate():
     """
     Populates an rdflib Graph given a quarter
@@ -98,6 +103,63 @@ def populate():
     return graph
 
 
+def query(graph, type):
+    """
+    Queries the ontology
+
+    Parameters:
+    graph (rdflib.Graph): Graph of ontology
+    ticker2 (employee_type): Employee type to query ontology for
+
+    Returns:
+    query (list): List of tuples in format (SEC report URL, name, ticker1,
+    ticker2) in the case of director/employee; list of all companies in
+    ontology otherwise
+
+    """
+
+    if type == employee_type.DIRECTOR:
+        query = graph.query(
+            '''
+            SELECT ?person ?p ?t1 ?t2
+            WHERE { {
+                ?person <http://york.ac.uk/worksat> ?company .
+                ?person <http://york.ac.uk/isdirector>  true .
+                ?person <http://york.ac.uk/worksat> ?othercompany .
+                ?person <http://xmlns.com/foaf/0.1/name> ?p .
+                ?company <http://york.ac.uk/tradingsymbol> ?t1 .
+                ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
+                ?quarter <http://york.ac.uk/periodreport> ?q .
+                FILTER(?t1 != ?t2)
+                } }
+            ''')
+    elif type == employee_type.EMPLOYEE:
+        query = graph.query(
+            '''
+            SELECT ?person ?p ?t1 ?t2
+            WHERE { {
+                ?person <http://york.ac.uk/worksat> ?company .
+                ?person <http://york.ac.uk/worksat> ?othercompany .
+                ?person <http://xmlns.com/foaf/0.1/name> ?p .
+                ?company <http://york.ac.uk/tradingsymbol> ?t1 .
+                ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
+                FILTER(?t1 != ?t2)
+                } }
+            ''')  # returns pairs of companies and person
+    elif type == employee_type.ALL:
+        query = graph.query(
+            '''
+            SELECT ?t
+            WHERE { {
+                ?company <http://york.ac.uk/tradingsymbol> ?t .
+                } }
+            ''')  # all companies in quarter
+
+    return query
+#endregion
+
+
+#region Stock
 def fetch_ticker(ticker):
     """
     Retrieves historical stock data between specified start and end dates
@@ -185,61 +247,6 @@ def cointegrate(ticker1, ticker2):
     return (coint_return.NO_RELATIONSHIP, p_value)
 
 
-def query(graph, type):
-    """
-    Queries the ontology
-
-    Parameters:
-    graph (rdflib.Graph): Graph of ontology
-    ticker2 (employee_type): Employee type to query ontology for
-
-    Returns:
-    query (list): List of tuples in format (SEC report URL, name, ticker1,
-    ticker2) in the case of director/employee; list of all companies in
-    ontology otherwise
-
-    """
-
-    if type == employee_type.DIRECTOR:
-        query = graph.query(
-            '''
-            SELECT ?person ?p ?t1 ?t2
-            WHERE { {
-                ?person <http://york.ac.uk/worksat> ?company .
-                ?person <http://york.ac.uk/isdirector>  true .
-                ?person <http://york.ac.uk/worksat> ?othercompany .
-                ?person <http://xmlns.com/foaf/0.1/name> ?p .
-                ?company <http://york.ac.uk/tradingsymbol> ?t1 .
-                ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
-                ?quarter <http://york.ac.uk/periodreport> ?q .
-                FILTER(?t1 != ?t2)
-                } }
-            ''')
-    elif type == employee_type.EMPLOYEE:
-        query = graph.query(
-            '''
-            SELECT ?person ?p ?t1 ?t2
-            WHERE { {
-                ?person <http://york.ac.uk/worksat> ?company .
-                ?person <http://york.ac.uk/worksat> ?othercompany .
-                ?person <http://xmlns.com/foaf/0.1/name> ?p .
-                ?company <http://york.ac.uk/tradingsymbol> ?t1 .
-                ?othercompany <http://york.ac.uk/tradingsymbol> ?t2 .
-                FILTER(?t1 != ?t2)
-                } }
-            ''')  # returns pairs of companies and person
-    elif type == employee_type.ALL:
-        query = graph.query(
-            '''
-            SELECT ?t
-            WHERE { {
-                ?company <http://york.ac.uk/tradingsymbol> ?t .
-                } }
-            ''')  # all companies in quarter
-
-    return query
-
-
 def clean(ticker):
     """
     Sanitises ticker, removing common erronous symbols
@@ -264,11 +271,13 @@ def clean(ticker):
         ticker = ticker.replace(symbol, "")
 
     return ticker
+#endregion
 
 
-def pairs_with_attributes(query):
+#region Set generation
+def pairs_with_links(query):
     """
-    Finds the number of attributes for each pair of companies from query
+    Finds the number of links for each pair of companies from query
 
     Should only be used for employee_type.DIRECTOR or employee_type.EMPLOYEE
 
@@ -313,44 +322,12 @@ def pairs_with_attributes(query):
 
     for key in pair_people_out:
         people = list(set(pair_people_out[key]))  # remove duplicate people
-        pair_people_out[key] = len(people)  # amount of attributes
+        pair_people_out[key] = len(people)  # amount of links
 
     sorted_pairs = {k: v for k, v in sorted(
-        pair_people_out.items(), key=lambda item: item[1], reverse=True)}  # sorts dictionary descending by number of attributes
+        pair_people_out.items(), key=lambda item: item[1], reverse=True)}  # sorts dictionary descending by number of links
 
     return sorted_pairs
-
-
-def generate_attribute_set(companies):
-    """
-    Generates a set of validated pairs given a list of pairs sharing links
-
-    Should only be used for a list of linked pairs AFTER being verified by
-    pairs_with_attributes
-
-    Removes transitive, duplicate, erroneous, and reversed pairs.
-
-    Parameters:
-    companies (list): List of linked pairs in ontology
-
-    Returns:
-    pair_set (list): List of validated pairs
-
-    """
-
-    pair_set = []
-
-    for pair in companies:
-        reversed_pair = (pair[1], pair[0])
-        result, p_value = cointegrate(pair[0], pair[1])
-
-        if pair[0] == pair[1] or pair in pair_set or result == coint_return.INVALID or reversed_pair in pair_set:
-            pass
-        else:
-            pair_set.append(pair)
-    # pair_counts = dict(pd.Series(pair_counts).value_counts()) # number of attributes
-
-    return pair_set
 
 
 def generate_random_set(companies, size, exclusion_list=None):
@@ -367,7 +344,7 @@ def generate_random_set(companies, size, exclusion_list=None):
     remove pairs of linked companies.
 
     Returns:
-    pair_set (list): List of validated
+    pair_set (list): List of validated pairs
 
     """
 
@@ -394,6 +371,40 @@ def generate_random_set(companies, size, exclusion_list=None):
     return pair_set
 
 
+def generate_linked_set(companies):
+    """
+    Generates a set of validated pairs given a list of pairs sharing links
+
+    Should only be used for a list of linked pairs AFTER being verified by
+    pairs_with_links
+
+    Removes transitive, duplicate, erroneous, and reversed pairs.
+
+    Parameters:
+    companies (list): List of linked pairs in ontology
+
+    Returns:
+    pair_set (list): List of validated pairs
+
+    """
+
+    pair_set = []
+
+    for pair in companies:
+        reversed_pair = (pair[1], pair[0])
+        result, p_value = cointegrate(pair[0], pair[1])
+
+        if pair[0] == pair[1] or pair in pair_set or result == coint_return.INVALID or reversed_pair in pair_set:
+            pass
+        else:
+            pair_set.append(pair)
+    # pair_counts = dict(pd.Series(pair_counts).value_counts()) # number of links
+
+    return pair_set
+#endregion
+
+
+#region Experiments
 def cointegrated_count(pairs, type, interval): # todo: change the function of this to just generate csv files or depreciate
     """
     Counts how many pairs are cointegrated given a list of pairs
@@ -580,7 +591,7 @@ def generate_linked_results():
         QUARTER = obj.folder
 
         graph = populate()
-        employee_dict = pairs_with_attributes(
+        employee_dict = pairs_with_links(
             query(graph, employee_type.EMPLOYEE))
 
         cointegrated_count(None, employee_type.ALL, None)
@@ -589,9 +600,9 @@ def generate_linked_results():
             for interval in range(1, 6):
                 employee_pairs = [x for x in list(
                     employee_dict) if employee_dict[x] >= interval]
-                employee_pairs = generate_attribute_set(employee_pairs)
+                employee_pairs = generate_linked_set(employee_pairs)
 
-                results.write("\nEmployee set cointegrated ({} attribute(s)): {}\n".format(
+                results.write("\nEmployee set cointegrated ({} links(s)): {}\n".format(
                     interval, cointegrated_count(employee_pairs, employee_type.ALL, interval)))
                 results.write("Total pairs in employee set: {}\n".format(
                     len(employee_pairs)))
@@ -632,7 +643,7 @@ def generate_survival(type):
         QUARTER = obj.folder
 
         graph = populate()
-        employee_dict = pairs_with_attributes(
+        employee_dict = pairs_with_links(
             query(graph, employee_type.EMPLOYEE))
 
         if type == employee_type.ALL:
@@ -653,9 +664,10 @@ def generate_survival(type):
             for interval in range(1, 6):
                 employee_pairs = [x for x in list(
                     employee_dict) if employee_dict[x] >= interval]
-                employee_pairs = generate_attribute_set(employee_pairs)
+                employee_pairs = generate_linked_set(employee_pairs)
 
                 sliding_new(type, employee_pairs, interval=interval)
                 if previous_quarter is not None:
                     sliding_existing(type, previous_quarter, interval=interval)
             previous_quarter = QUARTER
+#endregion
