@@ -292,6 +292,7 @@ def pairs_with_links(query):
     """
 
     pair_people_out = {}
+    remove_keys = []
 
     for row in query:
         sec_report, person, ticker1, ticker2 = row
@@ -303,8 +304,6 @@ def pairs_with_links(query):
             pair_people_out[pair].append(person)
         else:
             pair_people_out[pair] = [person]
-
-    remove_keys = []
 
     for key in pair_people_out:
         key_reversed = (key[1], key[0])
