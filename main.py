@@ -1,13 +1,10 @@
 from os import path
-from sys import stdout
 from random import choice
 from enum import Enum
 from statsmodels.tsa.stattools import coint
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 import pandas as pd
-import numpy as np
 import yfinance as yf
-import statsmodels.api as sm
 import rdflib
 import pickle
 from itertools import combinations
@@ -51,7 +48,7 @@ def push_cache(cache_path, input_structure):
     """
     Caches a data structure (primarily used for ontologies)
 
-    Parameters: 
+    Parameters:
     cache_path (string): Path to new cache file
     input_structure (var): Data structure to cache
 
@@ -103,11 +100,14 @@ def populate():
 
 def fetch_ticker(ticker):
     """
-    Retrieves historical stock data between specified start and end dates using close of day price
+    Retrieves historical stock data between specified start and end dates
+    using close of day price
 
-    Globals: 
-    COINTEGRATION_START_DATE (datetime): Start of period to retrieve stock information for
-    COINTEGRATION_END_DATE (datetime): End of period to retrieve stock information for
+    Globals:
+    COINTEGRATION_START_DATE (datetime): Start of period to retrieve stock
+    information for
+    COINTEGRATION_END_DATE (datetime): End of period to retrieve stock
+    information for
 
     Parameters:
     ticker (string): Stock ticker
@@ -135,11 +135,11 @@ def cointegrate(ticker1, ticker2):
     """
     Cointegrates two time series
 
-    Methods to eliminate erroneous pairs are missing trading days, null values in
-    one column but not the other.
+    Methods to eliminate erroneous pairs are missing trading days, null values
+    in one column but not the other
 
-    Cointegration methodology is Engle-Granger p-value < 0.05 and Johansen at 95%
-    confidence
+    Cointegration methodology is Engle-Granger p-value < 0.05 and Johansen at
+    95% confidence
 
     Globals:
     TRADING_DAYS (int): Amount of trading days for the quarter
@@ -149,9 +149,12 @@ def cointegrate(ticker1, ticker2):
     ticker2 (string): Second stock ticker of pair
 
     Returns:
-    (coint_return.INVALID, None) (coint_return, None): Tuple for invalid relationship
-    (coint_return.RELATIONSHIP, p_value) (coint_return, int): Tuple of cointegrated pair and p-value
-    (coint_return.NO_RELATIONSHIP, p_value) (coint_return, int): Tuple of uncointegrated pair and p-value
+    (coint_return.INVALID, None) (coint_return, None): Tuple for invalid
+    relationship
+    (coint_return.RELATIONSHIP, p_value) (coint_return, int): Tuple of
+    cointegrated pair and p-value
+    (coint_return.NO_RELATIONSHIP, p_value) (coint_return, int): Tuple of
+    uncointegrated pair and p-value
 
     """
 
@@ -191,8 +194,9 @@ def query(graph, type):
     ticker2 (employee_type): Employee type to query ontology for
 
     Returns:
-    query (list): List of tuples in format (SEC report URL, name, ticker1,ticker2) in the case
-    of director/employee; list of all companies in ontology otherwise
+    query (list): List of tuples in format (SEC report URL, name, ticker1,
+    ticker2) in the case of director/employee; list of all companies in
+    ontology otherwise
 
     """
 
@@ -269,10 +273,12 @@ def pairs_with_attributes(query):
     Should only be used for employee_type.DIRECTOR or employee_type.EMPLOYEE
 
     Parameters:
-    query (list): List of tuples in format (SEC report URL, name, ticker1, ticker2)
+    query (list): List of tuples in format (SEC report URL, name, ticker1,
+    ticker2)
 
     Returns:
-    sorted_pairs (dictionary): Dictionary of pair (key) and number of links (value)
+    sorted_pairs (dictionary): Dictionary of pair (key) and number of links
+    (value)
 
     """
 
@@ -319,7 +325,7 @@ def generate_attribute_set(companies):
     """
     Generates a set of validated pairs given a list of pairs sharing links
 
-    Should only be used for a list of linked pairs AFTER being verified by 
+    Should only be used for a list of linked pairs AFTER being verified by
     pairs_with_attributes
 
     Removes transitive, duplicate, erroneous, and reversed pairs.
@@ -357,8 +363,8 @@ def generate_random_set(companies, size, exclusion_list=None):
     Parameters:
     companies (list): List of all pairs in ontology
     size (int): Number of pairs to generate
-    exclusion_list (list, default: None): Pairs to ignore. Typically used to remove pairs
-    of linked companies.
+    exclusion_list (list, default: None): Pairs to ignore. Typically used to
+    remove pairs of linked companies.
 
     Returns:
     pair_set (list): List of validated
@@ -397,7 +403,8 @@ def cointegrated_count(pairs, type, interval): # todo: change the function of th
 
     Parameters:
     pairs (list): List of pairs
-    type (employee_type): Whether the pair set is linked or random, used to set save directory
+    type (employee_type): Whether the pair set is linked or random, used to
+    set save directory
     interval (int): Minimum number of links, used to set save directory
 
     Returns:
@@ -416,7 +423,7 @@ def cointegrated_count(pairs, type, interval): # todo: change the function of th
     if path.isfile(directory):
         cointegrated = pd.read_csv(directory).set_index("pair")
         new_cointegrated = pd.DataFrame(columns=["pair", QUARTER])
-        if pairs == None:
+        if pairs is None:
             pairs = [literal_eval(p) for p in cointegrated.index.values]
         else:
             existing_pairs = [literal_eval(p)
@@ -466,12 +473,15 @@ def sliding_new(type, pairs, interval=None):
     Differs from sliding_existing by creating a new dataframe
 
     Globals:
-    QUARTER (string): The quarter from which the pairs were selected, used to set save directory
+    QUARTER (string): The quarter from which the pairs were selected, used to
+    set save directory
 
     Parameters:
-    type (employee_type): Whether the pair set is linked or random, used to set save directory
+    type (employee_type): Whether the pair set is linked or random, used to
+    set save directory
     pairs (list): List of pairs
-    interval (int, default: None): Minimum number of links, used to set save directory
+    interval (int, default: None): Minimum number of links, used to set save
+    directory
 
     """
 
@@ -503,12 +513,16 @@ def sliding_existing(type, previous_quarter, interval=None): # todo, collapse sl
     Differs from sliding_new by operating on an existing dataframe
 
     Globals:
-    QUARTER (string): The quarter from which the pairs were selected, used to select existing CSV
+    QUARTER (string): The quarter from which the pairs were selected, used to
+    select existing CSV
 
     Parameters:
-    type (employee_type): Whether the pair set is linked or random, used to set save directory
-    previous_quarter (string): Derived from previous Quarter object, used to select existing CSV
-    interval (int, default: None): Minimum number of links, used to set save directory
+    type (employee_type): Whether the pair set is linked or random, used to
+    set save directory
+    previous_quarter (string): Derived from previous Quarter object, used to
+    select existing CSV
+    interval (int, default: None): Minimum number of links, used to set save
+    directory
 
 
     """
@@ -538,17 +552,19 @@ def sliding_existing(type, previous_quarter, interval=None): # todo, collapse sl
 
 def generate_linked_results():
     """
-    Generates results for linked companies, outputting the number of cointegrated pairs at
-    each interval
+    Generates results for linked companies, outputting the number of
+    cointegrated pairs at each interval
 
     Globals:
     OBJECT_LIST (list): List of quarters of type Quarter
-    COINTEGRATION_START_DATE (datetime): Start of period to retrieve stock information for,
-    passed to cointegrate()
-    COINTEGRATION_END_DATE (datetime): End of period to retrieve stock information for,
-    passed to cointegrate()
-    TRADING_DAYS (int): Amount of trading days for the quarter, passed to cointegrate()
-    QUARTER (string): The quarter to select pairs from, passed to multiple methods
+    COINTEGRATION_START_DATE (datetime): Start of period to retrieve stock
+    information for, passed to cointegrate()
+    COINTEGRATION_END_DATE (datetime): End of period to retrieve stock
+    information for, passed to cointegrate()
+    TRADING_DAYS (int): Amount of trading days for the quarter, passed to
+    cointegrate()
+    QUARTER (string): The quarter to select pairs from, passed to multiple
+    methods
 
     """
 
@@ -587,15 +603,18 @@ def generate_survival(type):
 
     Globals:
     OBJECT_LIST (list): List of quarters of type Quarter
-    COINTEGRATION_START_DATE (datetime): Start of period to retrieve stock information for,
-    passed to cointegrate()
-    COINTEGRATION_END_DATE (datetime): End of period to retrieve stock information for,
-    passed to cointegrate()
-    TRADING_DAYS (int): Amount of trading days for the quarter, passed to cointegrate()
-    QUARTER (string): The quarter to select pairs from, passed to multiple methods
+    COINTEGRATION_START_DATE (datetime): Start of period to retrieve stock
+    information for, passed to cointegrate()
+    COINTEGRATION_END_DATE (datetime): End of period to retrieve stock
+    information for, passed to cointegrate()
+    TRADING_DAYS (int): Amount of trading days for the quarter, passed to
+    cointegrate()
+    QUARTER (string): The quarter to select pairs from, passed to multiple
+    methods
 
     Parameters:
-    type (employee_type): 
+    type (employee_type): Whether the pair set is linked or random, used to
+    set save directory
 
     """
 
