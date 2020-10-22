@@ -5,8 +5,8 @@ from statsmodels.tsa.stattools import coint
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 import pandas as pd
 import yfinance as yf
-import rdflib
-import pickle
+from rdflib import Graph
+from pickle import dump, load
 from itertools import combinations
 from glob import glob
 from ast import literal_eval
@@ -54,11 +54,10 @@ def push_cache(cache_path, input_structure):
     Parameters:
     cache_path (string): Path to new cache file
     input_structure (var): Data structure to cache
-
     """
 
     outfile = open(cache_path, "wb")
-    pickle.dump(input_structure, outfile)
+    dump(input_structure, outfile)
     outfile.close()
 
 
@@ -71,11 +70,10 @@ def pop_cache(cache_path):
 
     Returns:
     cached (var): Decrypted data structure
-
     """
 
     infile = open(cache_path, "rb")
-    cached = pickle.load(infile)
+    cached = load(infile)
     infile.close()
 
     return cached
@@ -92,10 +90,9 @@ def populate():
 
     Returns:
     cached (rdflib.Graph): Ontology for quarter
-
     """
 
-    graph = rdflib.Graph()
+    graph = Graph()
 
     for nt in glob("data/{}/*.nt".format(QUARTER)):
         graph.parse(nt, format="nt")
@@ -115,7 +112,6 @@ def query(graph, type):
     query (list): List of tuples in format (SEC report URL, name, ticker1,
     ticker2) in the case of director/employee; list of all companies in
     ontology otherwise
-
     """
 
     if type == employee_type.DIRECTOR:
@@ -176,7 +172,6 @@ def fetch_ticker(ticker):
 
     Returns:
     series (pandas.DataFrame): DataFrame with data between dates
-
     """
 
     directory = "stocks/{}/{}.csv".format(QUARTER, ticker)
@@ -217,7 +212,6 @@ def cointegrate(ticker1, ticker2):
     cointegrated pair and p-value
     (coint_return.NO_RELATIONSHIP, p_value) (coint_return, int): Tuple of
     uncointegrated pair and p-value
-
     """
 
     series1 = fetch_ticker(ticker1)
@@ -256,7 +250,6 @@ def clean(ticker):
 
     Returns:
     ticker (string): Sanitised stock ticker
-
     """
 
     replace_with_blank = ["NASDAQ", "NYSE", "*", ":",
@@ -288,7 +281,6 @@ def pairs_with_links(query):
     Returns:
     sorted_pairs (dictionary): Dictionary of pair (key) and number of links
     (value)
-
     """
 
     pair_people_out = {}
@@ -344,7 +336,6 @@ def generate_random_set(companies, size, exclusion_list=None):
 
     Returns:
     pair_set (list): List of validated pairs
-
     """
 
     count = 0
@@ -384,7 +375,6 @@ def generate_linked_set(companies):
 
     Returns:
     pair_set (list): List of validated pairs
-
     """
 
     pair_set = []
@@ -419,7 +409,6 @@ def cointegrated_count(pairs, type, interval): # todo: change the function of th
 
     Returns:
     count (int): Number of cointegrated pairs
-
     """
 
     count = 0
@@ -486,7 +475,6 @@ def sliding_new(type, pairs, interval=None):
     pairs (list): List of pairs
     interval (int, default: None): Minimum number of links, used to set save
     directory
-
     """
 
     if type == employee_type.ALL:
@@ -527,8 +515,6 @@ def sliding_existing(type, previous_quarter, interval=None): # todo, collapse sl
     select existing CSV
     interval (int, default: None): Minimum number of links, used to set save
     directory
-
-
     """
 
     if type == employee_type.ALL:
@@ -569,7 +555,6 @@ def generate_linked_results():
     cointegrate()
     QUARTER (string): The quarter to select pairs from, passed to multiple
     methods
-
     """
 
     for obj in OBJECT_LIST:
@@ -619,7 +604,6 @@ def generate_survival(type):
     Parameters:
     type (employee_type): Whether the pair set is linked or random, used to
     set save directory
-
     """
 
     previous_quarter = None
