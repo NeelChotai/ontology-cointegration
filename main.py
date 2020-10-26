@@ -288,8 +288,7 @@ def pairs_with_links(query):
 
     for row in query:
         sec_report, person, ticker1, ticker2 = row
-        sec_report, person, ticker1, ticker2 = str(sec_report), str(
-            person), clean(str(ticker1).upper()), clean(str(ticker2).upper())
+        ticker1, ticker2 = clean(str(ticker1).upper()), clean(str(ticker2).upper())
         pair = (ticker1, ticker2)
 
         if pair in pair_people_out:
@@ -429,7 +428,6 @@ def cointegrated_count(pairs, type, interval): # todo: change the function of th
                               for p in cointegrated.index.values]
             generated_pairs = set(pairs)
             generated_pairs.update(existing_pairs)
-            generated_pairs = list(generated_pairs)
     else:
         cointegrated = pd.DataFrame(columns=["pair", QUARTER]) # this will not work in its current form, more testing required
 
