@@ -284,7 +284,7 @@ def pairs_with_links(query):
     """
 
     pair_people_out = {}
-    remove_keys = []
+    remove_keys = set()
 
     for row in query:
         sec_report, person, ticker1, ticker2 = row
@@ -300,24 +300,19 @@ def pairs_with_links(query):
         key_reversed = (key[1], key[0])
 
         if key[0] == key[1]:  # reflexive pairs
-            remove_keys.append(key)
-        elif key_reversed in pair_people_out:  # transitive pairs
-            if key in remove_keys:
-                pass
-            else:
-                remove_keys.append(key_reversed)
+            remove_keys.add(key)
+        elif key_reversed in pair_people_out and key not in remove_keys:  # transitive pairs
+            remove_keys.add(key_reversed)
 
     for key in remove_keys:
         pair_people_out.pop(key)
 
     for key in pair_people_out:
-        people = list(set(pair_people_out[key]))  # remove duplicate people
+        people = set(pair_people_out[key])  # remove duplicate people
         pair_people_out[key] = len(people)  # amount of links
 
-    sorted_pairs = {k: v for k, v in sorted(
+    return {k: v for k, v in sorted(
         pair_people_out.items(), key=lambda item: item[1], reverse=True)}  # sorts dictionary descending by number of links
-
-    return sorted_pairs
 
 
 def generate_random_set(companies, size, exclusion_list=None):
@@ -338,8 +333,8 @@ def generate_random_set(companies, size, exclusion_list=None):
     """
 
     count = 0
-    pair_set = []
-    all_pairs = list(combinations(companies, 2))
+    pair_set = set()
+    all_pairs = combinations(companies, 2)
     pairs = [x for x in all_pairs if x not in exclusion_list]
 
     while True:
@@ -350,7 +345,7 @@ def generate_random_set(companies, size, exclusion_list=None):
         if pair[0] == pair[1] or pair in pair_set or result == coint_return.INVALID or reversed_pair in pair_set:
             count -= 1
         else:
-            pair_set.append(pair)
+            pair_set.add(pair)
 
         count += 1
 
@@ -376,7 +371,7 @@ def generate_linked_set(companies):
     pair_set (list): List of validated pairs
     """
 
-    pair_set = []
+    pair_set = set()
 
     for pair in companies:
         reversed_pair = (pair[1], pair[0])
@@ -385,7 +380,7 @@ def generate_linked_set(companies):
         if pair[0] == pair[1] or pair in pair_set or result == coint_return.INVALID or reversed_pair in pair_set:
             pass
         else:
-            pair_set.append(pair)
+            pair_set.add(pair)
     # pair_counts = dict(pd.Series(pair_counts).value_counts()) # number of links
 
     return pair_set
